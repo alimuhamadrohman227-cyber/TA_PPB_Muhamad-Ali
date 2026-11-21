@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build output and tooling caches
+/dist/
+**/dist/
+**/dist_worker/
+/coverage/
+/.vite/
+/.expo/
+/.wrangler/
+**/.wrangler/
+
+# Local environment variables and secrets
+.env
+.env.*
+.dev.vars
+!.env.example
+!**/.env.example
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Operating system and editor files
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+*.swo
+
+.dev.vars

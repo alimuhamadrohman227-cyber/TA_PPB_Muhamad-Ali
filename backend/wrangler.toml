@@ -1,0 +1,16 @@
+name = "catatan-keuangan-api"
+main = "worker.js"
+compatibility_date = "2025-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Batas ukuran request (cocok untuk foto struk base64 ~10 MB)
+# Default Workers: 100 MB – tidak perlu diubah
+
+[vars]
+# Env var default (nilai sensitif di-set via `wrangler secret put`)
+NODE_ENV = "production"
+
+# Daftar secret yang harus diisi via CLI sebelum deploy:
+# npx wrangler secret put DATABASE_URL
+# npx wrangler secret put JWT_SECRET
+# npx wrangler secret put GEMINI_API_KEY
