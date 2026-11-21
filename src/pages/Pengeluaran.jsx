@@ -6,6 +6,7 @@ import PageHeading from '../components/PageHeading.jsx';
 import TransactionListItem from '../components/TransactionListItem.jsx';
 import { getTransactions } from '../services/api.js';
 import { currency, isSameMonth, localDateString, parseLocalDate } from '../utils/format.js';
+import { getErrorMessage } from '../utils/errors.js';
 
 const periods = [
   { value: 'Harian', label: 'Harian' },
@@ -23,7 +24,7 @@ export default function Pengeluaran() {
   useEffect(() => {
     getTransactions()
       .then(setTransactions)
-      .catch((cause) => setError(cause.message || 'Data transaksi gagal dimuat.'));
+      .catch((cause) => setError(getErrorMessage(cause, 'Data transaksi gagal dimuat.')));
   }, []);
 
   const monthExpenses = transactions
@@ -49,7 +50,7 @@ export default function Pengeluaran() {
   return (
     <main className="page-pad">
       <PageHeading title="Pengeluaran" subtitle="UANG KELUAR" />
-      {error && <p role="alert" className="mb-4 rounded-2xl bg-red-50 px-4 py-3 text-xs text-red-700">{error}</p>}
+      {error && <p role="alert" className="mb-4 rounded-2xl bg-[#FEF2F2] px-4 py-3 text-sm text-[#B91C1C]">{error}</p>}
 
       <section className="card overflow-hidden p-5">
         <div className="flex items-start justify-between">

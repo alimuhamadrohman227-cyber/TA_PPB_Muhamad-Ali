@@ -9,8 +9,7 @@
     "deploy": "wrangler deploy",
     "cf:dev": "wrangler dev",
     "secret:db": "wrangler secret put DATABASE_URL",
-    "secret:jwt": "wrangler secret put JWT_SECRET",
-    "secret:gemini": "wrangler secret put GEMINI_API_KEY"
+    "secret:jwt": "wrangler secret put JWT_SECRET"
   },
   "keywords": [],
   "author": "",

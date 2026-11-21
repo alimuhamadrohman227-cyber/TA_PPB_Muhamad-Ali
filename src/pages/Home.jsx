@@ -6,6 +6,7 @@ import PageHeading from '../components/PageHeading.jsx';
 import TransactionListItem from '../components/TransactionListItem.jsx';
 import { getTransactions } from '../services/api.js';
 import { currency, isSameMonth, monthLabel } from '../utils/format.js';
+import { getErrorMessage } from '../utils/errors.js';
 
 export default function Home() {
   const [transactions, setTransactions] = useState([]);
@@ -15,7 +16,7 @@ export default function Home() {
   useEffect(() => {
     getTransactions()
       .then(setTransactions)
-      .catch((cause) => setError(cause.message || 'Data transaksi gagal dimuat.'));
+      .catch((cause) => setError(getErrorMessage(cause, 'Data transaksi gagal dimuat.')));
   }, []);
 
   const monthTransactions = transactions.filter((item) => isSameMonth(item.date, selectedMonth));
@@ -53,7 +54,7 @@ export default function Home() {
           </label>
         }
       />
-      {error && <p role="alert" className="mb-4 rounded-2xl bg-red-50 px-4 py-3 text-xs text-red-700">{error}</p>}
+      {error && <p role="alert" className="mb-4 rounded-2xl bg-[#FEF2F2] px-4 py-3 text-sm text-[#B91C1C]">{error}</p>}
 
       <div className="flex flex-col space-y-6">
       <section className="relative overflow-hidden rounded-[28px] bg-[#24332C] p-5 text-white shadow-xl shadow-[#24332C]/10">

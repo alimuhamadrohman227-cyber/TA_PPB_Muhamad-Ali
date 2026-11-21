@@ -25,8 +25,6 @@ function copyBindingsToProcessEnv(env) {
     }
     process.env[name] = env[name];
   }
-  process.env.GEMINI_API_KEY =
-    typeof env.GEMINI_API_KEY === 'string' ? env.GEMINI_API_KEY : '';
 }
 
 async function getWorkerHandler(env) {

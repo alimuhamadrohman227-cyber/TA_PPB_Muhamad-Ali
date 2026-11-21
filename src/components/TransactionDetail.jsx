@@ -3,6 +3,7 @@ import { ArrowDownLeft, ArrowUpRight, CalendarDays, Pencil, Tag, Trash2 } from '
 import { useNavigate, useParams } from 'react-router-dom';
 import { deleteTransaction, getTransactionById, updateTransaction } from '../services/api.js';
 import { currency, formatDate } from '../utils/format.js';
+import { getErrorMessage } from '../utils/errors.js';
 import EmptyState from './EmptyState.jsx';
 import PageHeading from './PageHeading.jsx';
 import TransactionForm from './TransactionForm.jsx';
@@ -19,20 +20,16 @@ export default function TransactionDetail({ type }) {
     let active = true;
     getTransactionById(id)
       .then((item) => { if (active) setTransaction(item?.type === type ? item : null); })
-      .catch((cause) => { if (active) setError(cause.message || 'Transaksi gagal dimuat.'); })
+      .catch((cause) => { if (active) setError(getErrorMessage(cause, 'Transaksi gagal dimuat.')); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [id, type]);
 
   const save = async (changes) => {
-    try {
-      const updated = await updateTransaction(id, changes);
-      setTransaction(updated);
-      setEditing(false);
-      setError('');
-    } catch (cause) {
-      setError(cause.message || 'Perubahan gagal disimpan.');
-    }
+    const updated = await updateTransaction(id, changes);
+    setTransaction(updated);
+    setEditing(false);
+    setError('');
   };
   const remove = async () => {
     if (!window.confirm('Hapus transaksi ini? Tindakan ini tidak dapat dibatalkan.')) return;
@@ -40,7 +37,7 @@ export default function TransactionDetail({ type }) {
       await deleteTransaction(id);
       navigate(type === 'income' ? '/pemasukan' : '/', { replace: true });
     } catch (cause) {
-      setError(cause.message || 'Transaksi gagal dihapus.');
+      setError(getErrorMessage(cause, 'Transaksi gagal dihapus.'));
     }
   };
 
@@ -52,7 +49,7 @@ export default function TransactionDetail({ type }) {
   return (
     <main className="page-pad">
       <PageHeading title="Detail transaksi" subtitle={income ? 'Pemasukan' : 'Pengeluaran'} back />
-      {error && <p role="alert" className="mb-4 rounded-2xl bg-red-50 px-4 py-3 text-xs text-red-700">{error}</p>}
+      {error && <p role="alert" className="mb-4 rounded-2xl bg-[#FEF2F2] px-4 py-3 text-sm text-[#B91C1C]">{error}</p>}
       {editing ? (
         <section className="card p-5"><h2 className="mb-5 text-base font-bold">Edit transaksi</h2><TransactionForm initial={transaction} onSubmit={save} submitLabel="Simpan perubahan" compact /></section>
       ) : (

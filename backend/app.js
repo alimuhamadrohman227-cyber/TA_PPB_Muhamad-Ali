@@ -71,7 +71,15 @@ function createExpressApp({ sql, env } = {}) {
 
   // Register
   app.post('/api/auth/register', async (req, res) => {
-    const { name, email, password } = req.body;
+    const name = String(req.body?.name ?? '').trim();
+    const email = String(req.body?.email ?? '').trim().toLowerCase();
+    const password = String(req.body?.password ?? '');
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'Nama, email, dan password wajib diisi.' });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'Password minimal 6 karakter.' });
+    }
     try {
       const existing = await runQuery('SELECT id FROM users WHERE email = $1', [email]);
       if (existing.rows.length > 0) {
@@ -92,7 +100,11 @@ function createExpressApp({ sql, env } = {}) {
 
   // Login
   app.post('/api/auth/login', async (req, res) => {
-    const { email, password } = req.body;
+    const email = String(req.body?.email ?? '').trim().toLowerCase();
+    const password = String(req.body?.password ?? '');
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Email dan password wajib diisi.' });
+    }
     try {
       const result = await runQuery('SELECT * FROM users WHERE email = $1', [email]);
       if (result.rows.length === 0) {
@@ -123,21 +135,23 @@ function createExpressApp({ sql, env } = {}) {
 
   // Update profil (nama & avatar sekaligus)
   app.put('/api/auth/profile', authenticateToken, async (req, res) => {
-    const { name, avatar } = req.body;
-    if (!name || !name.trim()) return res.status(400).json({ message: 'Nama tidak boleh kosong.' });
+    const name = String(req.body?.name ?? '').trim();
+    const { avatar } = req.body ?? {};
+    if (!name) return res.status(400).json({ message: 'Nama tidak boleh kosong.' });
     try {
       let result;
       if (avatar !== undefined) {
         result = await runQuery(
           'UPDATE users SET name = $1, avatar = $2 WHERE id = $3 RETURNING id, name, email, avatar',
-          [name.trim(), avatar, req.user.id]
+          [name, avatar, req.user.id]
         );
       } else {
         result = await runQuery(
           'UPDATE users SET name = $1 WHERE id = $2 RETURNING id, name, email, avatar',
-          [name.trim(), req.user.id]
+          [name, req.user.id]
         );
       }
+      if (result.rows.length === 0) return res.status(404).json({ message: 'Pengguna tidak ditemukan.' });
       res.json({ user: result.rows[0], message: 'Profil berhasil diperbarui.' });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -146,7 +160,7 @@ function createExpressApp({ sql, env } = {}) {
 
   // Update avatar saja
   app.put('/api/auth/avatar', authenticateToken, async (req, res) => {
-    const { avatar } = req.body;
+    const { avatar } = req.body ?? {};
     try {
       const result = await runQuery(
         'UPDATE users SET avatar = $1 WHERE id = $2 RETURNING id, name, email, avatar',
@@ -161,7 +175,7 @@ function createExpressApp({ sql, env } = {}) {
 
   // Ganti password
   app.put('/api/auth/change-password', authenticateToken, async (req, res) => {
-    const { oldPassword, newPassword } = req.body;
+    const { oldPassword, newPassword } = req.body ?? {};
     if (!oldPassword || !newPassword) return res.status(400).json({ message: 'Semua kolom wajib diisi.' });
     if (newPassword.length < 6) return res.status(400).json({ message: 'Password baru minimal 6 karakter.' });
     try {
@@ -194,11 +208,24 @@ function createExpressApp({ sql, env } = {}) {
   });
 
   app.post('/api/transactions', authenticateToken, async (req, res) => {
-    const { type, amount, title, category, date } = req.body;
+    const { type } = req.body ?? {};
+    const amount = Number(req.body?.amount);
+    const title = String(req.body?.title ?? '').trim();
+    const category = String(req.body?.category ?? '').trim();
+    const date = req.body?.date || new Date().toISOString().split('T')[0];
+    const note = String(req.body?.note ?? '').trim();
+    if (!['income', 'expense'].includes(type)) {
+      return res.status(400).json({ message: 'Tipe transaksi harus pemasukan atau pengeluaran.' });
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({ message: 'Nominal transaksi harus berupa angka lebih dari 0.' });
+    }
+    if (!title) return res.status(400).json({ message: 'Judul transaksi tidak boleh kosong.' });
+    if (!category) return res.status(400).json({ message: 'Kategori transaksi tidak boleh kosong.' });
     try {
       const result = await runQuery(
-        'INSERT INTO transactions (user_id, type, amount, title, category, date) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-        [req.user.id, type, amount, title, category, date || new Date().toISOString().split('T')[0]]
+        'INSERT INTO transactions (user_id, type, amount, title, category, date, note) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+        [req.user.id, type, amount, title, category, date, note]
       );
       res.status(201).json(result.rows[0]);
     } catch (err) {
@@ -208,11 +235,25 @@ function createExpressApp({ sql, env } = {}) {
 
   app.put('/api/transactions/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
-    const { type, amount, title, category, date } = req.body;
+    const { type } = req.body ?? {};
+    const amount = Number(req.body?.amount);
+    const title = String(req.body?.title ?? '').trim();
+    const category = String(req.body?.category ?? '').trim();
+    const date = req.body?.date;
+    const note = String(req.body?.note ?? '').trim();
+    if (!['income', 'expense'].includes(type)) {
+      return res.status(400).json({ message: 'Tipe transaksi harus pemasukan atau pengeluaran.' });
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({ message: 'Nominal transaksi harus berupa angka lebih dari 0.' });
+    }
+    if (!title) return res.status(400).json({ message: 'Judul transaksi tidak boleh kosong.' });
+    if (!category) return res.status(400).json({ message: 'Kategori transaksi tidak boleh kosong.' });
+    if (!date) return res.status(400).json({ message: 'Tanggal transaksi wajib diisi.' });
     try {
       const result = await runQuery(
-        'UPDATE transactions SET type = $1, amount = $2, title = $3, category = $4, date = $5 WHERE id = $6 AND user_id = $7 RETURNING *',
-        [type, amount, title, category, date, id, req.user.id]
+        'UPDATE transactions SET type = $1, amount = $2, title = $3, category = $4, date = $5, note = $6 WHERE id = $7 AND user_id = $8 RETURNING *',
+        [type, amount, title, category, date, note, id, req.user.id]
       );
       if (result.rows.length === 0) return res.status(404).json({ message: 'Transaksi tidak ditemukan.' });
       res.json(result.rows[0]);
@@ -221,22 +262,18 @@ function createExpressApp({ sql, env } = {}) {
     }
   });
 
-  app.delete('/api/transactions/:id', authenticateToken, async (req, res) => {
-    const { id } = req.params;
-    try {
-      await runQuery('DELETE FROM transactions WHERE id = $1 AND user_id = $2', [id, req.user.id]);
-      res.json({ message: 'Transaksi berhasil dihapus.' });
-    } catch (err) {
-      res.status(500).json({ message: err.message });
-    }
-  });
-
-  // Reset bulan ini
+  // Reset routes must be registered before the parameterized DELETE route below.
   const resetMonthHandler = async (req, res) => {
     try {
       const now = new Date();
-      const year = req.body?.year || req.query?.year || now.getFullYear();
-      const monthNum = req.body?.month || req.query?.month || (now.getMonth() + 1);
+      const year = Number(req.query?.year ?? req.body?.year ?? now.getFullYear());
+      const monthNum = Number(req.query?.month ?? req.body?.month ?? (now.getMonth() + 1));
+      if (!Number.isInteger(year) || year < 1 || year > 9999) {
+        return res.status(400).json({ message: 'Tahun transaksi tidak valid.' });
+      }
+      if (!Number.isInteger(monthNum) || monthNum < 1 || monthNum > 12) {
+        return res.status(400).json({ message: 'Bulan harus berupa angka antara 1 dan 12.' });
+      }
       const month = String(monthNum).padStart(2, '0');
       const startOfMonth = `${year}-${month}-01`;
       await runQuery(
@@ -265,17 +302,19 @@ function createExpressApp({ sql, env } = {}) {
   app.get('/api/transactions/export/csv', authenticateToken, async (req, res) => {
     try {
       const result = await runQuery(
-        'SELECT date, type, title, category, amount FROM transactions WHERE user_id = $1 ORDER BY date DESC, created_at DESC',
+        'SELECT date, type, title, category, amount, note FROM transactions WHERE user_id = $1 ORDER BY date DESC, created_at DESC',
         [req.user.id]
       );
-      let csv = 'Tanggal,Tipe,Judul,Kategori,Nominal\r\n';
-      for (const row of result.rows) {
-        const typeLabel = row.type === 'income' ? 'Pemasukan' : 'Pengeluaran';
-        const cleanTitle = (row.title || '').replace(/"/g, '""');
-        const cleanCat = (row.category || '').replace(/"/g, '""');
-        const dateStr = typeof row.date === 'string' ? row.date.split('T')[0] : new Date(row.date).toISOString().split('T')[0];
-        csv += `${dateStr},${typeLabel},"${cleanTitle}","${cleanCat}",${row.amount}\r\n`;
-      }
+      const escapeCsv = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+      const csvRows = [
+        ['Tanggal', 'Tipe', 'Judul', 'Kategori', 'Nominal', 'Catatan'],
+        ...result.rows.map((row) => {
+          const typeLabel = row.type === 'income' ? 'Pemasukan' : 'Pengeluaran';
+          const dateStr = typeof row.date === 'string' ? row.date.split('T')[0] : new Date(row.date).toISOString().split('T')[0];
+          return [dateStr, typeLabel, row.title, row.category, row.amount, row.note];
+        }),
+      ];
+      const csv = `${csvRows.map((row) => row.map(escapeCsv).join(',')).join('\r\n')}\r\n`;
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', 'attachment; filename="catatan-keuangan.csv"');
       res.send(csv);
@@ -284,107 +323,13 @@ function createExpressApp({ sql, env } = {}) {
     }
   });
 
-  // ══════════════════════════════════════════════════════════════════
-  //  SCAN RECEIPT OCR (GEMINI VISION)
-  // ══════════════════════════════════════════════════════════════════
-
-  app.post('/api/scan-receipt', authenticateToken, async (req, res) => {
-    const { imageBase64, mimeType } = req.body;
-    if (!imageBase64) {
-      return res.status(400).json({ message: 'Gambar struk tidak boleh kosong.' });
-    }
-
-    const apiKey = process.env.GEMINI_API_KEY || (env && env.GEMINI_API_KEY);
-    if (!apiKey || apiKey.includes('MASUKKAN_GEMINI_API_KEY')) {
-      return res.status(400).json({ message: 'API Key Gemini belum disetel di environment. Silakan set via wrangler secret put GEMINI_API_KEY.' });
-    }
-
-    const prompt = `Kamu adalah pakar OCR dan analisis struk belanja / transaksi keuangan berbahasa Indonesia yang sangat teliti.
-TUGAS UTAMA:
-Analisis gambar struk / screenshot transaksi berikut secara cermat dan ekstrak informasi penting:
-
-1. "merchantName": Nama toko / minimarket / restoran / platform (contoh: "Indomaret", "Alfamart", "SPBU Pertamina", "GoFood", "Tokopedia", dll). Jika tidak ada nama toko, isi dengan "Struk Belanja".
-2. "date": Tanggal transaksi pada struk.
-   - Periksa tanggal di bagian atas/bawah struk (misal: "12/11/2026", "12-11-2026", "12 Nov 2026", "2026-11-12 14:30").
-   - Konversikan SELALU ke format standar ISO "YYYY-MM-DD" (contoh: "2026-11-12").
-   - Jika tanggal sama sekali tidak terbaca/tidak tercantum, gunakan tanggal hari ini.
-3. "totalAmount": Total akhir (Grand Total) yang dibayarkan oleh pembeli. Pastikan angka integer bulat (tanpa koma desimal, tanpa titik pemisah ribuan, tanpa simbol Rp).
-4. "items": Daftar barang / pengeluaran yang tercantum.
-   Untuk setiap item:
-   - "title": Nama produk/layanan yang dibeli. Bersihkan singkatan kasir agar rapi dan mudah dimengerti.
-   - "amount": Total harga akhir untuk barang tersebut (angka integer, sudah terhitung diskon bila ada).
-   - "category": Tentukan kategori paling relevan HANYA dari salah satu pilihan berikut:
-     ["Makan", "Transport", "Belanja", "Tagihan", "Hiburan", "Kesehatan", "Lainnya"].
-
-ATURAN KETAT:
-- Jangan memasukkan nomor kasir, kode struk, barcode, baris subtotal, baris PPN/tax, atau nomor kartu debit/kredit sebagai item belanja!
-- Kembalikan HANYA format JSON murni tanpa markdown \`\`\`json.`;
-
+  app.delete('/api/transactions/:id', authenticateToken, async (req, res) => {
+    const { id } = req.params;
     try {
-      const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
-      const validMime = mimeType || 'image/jpeg';
-
-      const callGemini = async (modelName) => {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-        return fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: validMime, data: cleanBase64 } }] }],
-            generationConfig: { response_mime_type: 'application/json', temperature: 0.1 },
-          }),
-        });
-      };
-
-      let response = await callGemini('gemini-3.5-flash-lite');
-      if (!response.ok && (response.status === 404 || response.status === 503)) {
-        response = await callGemini('gemini-3.5-flash');
-      }
-
-      const jsonRes = await response.json();
-      if (!response.ok) {
-        const errMsg = jsonRes?.error?.message || 'Gagal memproses struk via Gemini API.';
-        return res.status(response.status).json({ message: errMsg });
-      }
-
-      const rawText = jsonRes?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-      const cleanedText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-      const parsed = JSON.parse(cleanedText);
-
-      const merchantName = (parsed.merchantName || 'Struk Belanja').trim();
-      let receiptDate = parsed.date;
-      if (!receiptDate || !/^\d{4}-\d{2}-\d{2}$/.test(receiptDate)) {
-        receiptDate = new Date().toISOString().split('T')[0];
-      }
-
-      const totalAmount = Math.abs(Number(parsed.totalAmount)) || 0;
-      const allowedCategories = ['Makan', 'Transport', 'Belanja', 'Tagihan', 'Hiburan', 'Kesehatan', 'Lainnya'];
-      const items = Array.isArray(parsed.items)
-        ? parsed.items
-            .map((item) => ({
-              title: String(item.title || 'Barang').trim(),
-              amount: Math.abs(Number(item.amount)) || 0,
-              category: allowedCategories.includes(item.category) ? item.category : 'Belanja',
-            }))
-            .filter((item) => item.amount > 0 && item.title.length > 0)
-        : [];
-
-      if (items.length === 0 && totalAmount > 0) {
-        items.push({
-          title: merchantName !== 'Struk Belanja' ? `Belanja di ${merchantName}` : 'Belanja Struk',
-          amount: totalAmount,
-          category: 'Belanja',
-        });
-      }
-
-      res.json({
-        merchantName,
-        date: receiptDate,
-        totalAmount: totalAmount || items.reduce((sum, it) => sum + it.amount, 0),
-        items,
-      });
+      await runQuery('DELETE FROM transactions WHERE id = $1 AND user_id = $2', [id, req.user.id]);
+      res.json({ message: 'Transaksi berhasil dihapus.' });
     } catch (err) {
-      res.status(500).json({ message: 'Terjadi kesalahan sistem saat memproses struk: ' + err.message });
+      res.status(500).json({ message: err.message });
     }
   });
 

@@ -5,6 +5,7 @@ import LiquidSegmentedControl from '../components/LiquidSegmentedControl.jsx';
 import PageHeading from '../components/PageHeading.jsx';
 import { getTransactions, resetAllTransactions, resetMonthTransactions } from '../services/api.js';
 import { currency, monthLabel, parseLocalDate } from '../utils/format.js';
+import { getErrorMessage } from '../utils/errors.js';
 
 const csvCell = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`;
 const periods = [
@@ -19,7 +20,7 @@ export default function Rekap() {
   const [selectedMonth, setSelectedMonth] = useState(() => new Date());
   const [error, setError] = useState('');
   useEffect(() => {
-    getTransactions().then(setTransactions).catch((cause) => setError(cause.message || 'Data transaksi gagal dimuat.'));
+    getTransactions().then(setTransactions).catch((cause) => setError(getErrorMessage(cause, 'Data transaksi gagal dimuat.')));
   }, []);
 
   const filtered = useMemo(() => transactions.filter((item) => {
@@ -59,7 +60,7 @@ export default function Rekap() {
       setTransactions(await getTransactions());
       setError('');
     } catch (cause) {
-      setError(cause.message || 'Data bulan ini gagal dihapus.');
+      setError(getErrorMessage(cause, 'Data bulan ini gagal dihapus.'));
     }
   };
   const resetAll = async () => {
@@ -69,7 +70,7 @@ export default function Rekap() {
       setTransactions([]);
       setError('');
     } catch (cause) {
-      setError(cause.message || 'Semua data gagal dihapus.');
+      setError(getErrorMessage(cause, 'Semua data gagal dihapus.'));
     }
   };
   const shiftMonth = (difference) => setSelectedMonth((current) => new Date(
@@ -81,7 +82,7 @@ export default function Rekap() {
   return (
     <main className="page-pad">
       <PageHeading title="Rekap Keuangan" subtitle="ANALISIS & KELOLA DATA" />
-      {error && <p role="alert" className="mb-4 rounded-2xl bg-red-50 px-4 py-3 text-xs text-red-700">{error}</p>}
+      {error && <p role="alert" className="mb-4 rounded-2xl bg-[#FEF2F2] px-4 py-3 text-sm text-[#B91C1C]">{error}</p>}
       <LiquidSegmentedControl options={periods} value={period} onChange={setPeriod} className="mb-4 w-full" />
       {period !== 'Semua' && <div className="mb-4 flex items-center justify-between rounded-2xl border border-[#EFEFED] bg-white px-3 py-2"><button onClick={() => shiftMonth(-1)} aria-label="Periode sebelumnya" className="grid h-8 w-8 place-items-center rounded-full text-[#59635C]"><ArrowLeft size={17} /></button><span className="text-xs font-semibold text-[#38423B]">{period === 'Tahunan' ? selectedMonth.getFullYear() : monthLabel(selectedMonth)}</span><button onClick={() => shiftMonth(1)} aria-label="Periode berikutnya" className="grid h-8 w-8 place-items-center rounded-full text-[#59635C]"><ArrowRight size={17} /></button></div>}
       <div className="flex flex-col space-y-6">
