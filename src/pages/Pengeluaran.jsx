@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Search, TrendingDown } from 'lucide-react';
+import AnimatedCurrency from '../components/AnimatedCurrency.jsx';
 import EmptyState from '../components/EmptyState.jsx';
 import LiquidSegmentedControl from '../components/LiquidSegmentedControl.jsx';
+import { ListSkeleton, SummarySkeleton } from '../components/LoadingSkeleton.jsx';
 import PageHeading from '../components/PageHeading.jsx';
 import TransactionGroupList from '../components/TransactionGroupList.jsx';
 import { getTransactions } from '../services/api.js';
-import { currency, isSameMonth } from '../utils/format.js';
+import { isSameMonth } from '../utils/format.js';
 import { getErrorMessage } from '../utils/errors.js';
 
 const periods = [
@@ -16,6 +18,7 @@ const periods = [
 
 export default function Pengeluaran() {
   const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('Bulanan');
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
@@ -24,7 +27,8 @@ export default function Pengeluaran() {
   useEffect(() => {
     getTransactions()
       .then(setTransactions)
-      .catch((cause) => setError(getErrorMessage(cause, 'Data transaksi gagal dimuat.')));
+      .catch((cause) => setError(getErrorMessage(cause, 'Data transaksi gagal dimuat.')))
+      .finally(() => setLoading(false));
   }, []);
 
   const monthExpenses = transactions
@@ -37,30 +41,30 @@ export default function Pengeluaran() {
   [transactions, search]);
 
   return (
-    <main className="page-pad">
+    <main className="page-pad has-fab-content">
       <PageHeading title="Pengeluaran" subtitle="UANG KELUAR" />
       {error && <p role="alert" className="mb-4 rounded-2xl bg-[#FEF2F2] px-4 py-3 text-sm text-[#B91C1C]">{error}</p>}
 
-      <section className="card overflow-hidden p-5">
+      {loading ? <SummarySkeleton /> : <section className="card motion-enter overflow-hidden p-card">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-xs text-[#858A85]">Total pengeluaran bulan ini</p>
-            <p className="mt-2 text-[27px] font-bold tracking-tight text-[#24332C]">{currency(monthExpenses)}</p>
-            <p className="mt-1 text-[11px] text-[#929792]">
+            <p className="caption">Total pengeluaran bulan ini</p>
+            <p className="money mt-2 text-[27px] font-bold tracking-tight text-[#24332C]"><AnimatedCurrency amount={monthExpenses} /></p>
+            <p className="caption mt-1">
               {new Intl.DateTimeFormat('id-ID', { month: 'long', year: 'numeric' }).format(now)}
             </p>
           </div>
           <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#FEE2E2] text-[#DC2626]"><TrendingDown size={21} /></span>
         </div>
-      </section>
+      </section>}
 
-      <section className="mt-8">
+      <section className="mt-section">
         <div className="mb-4 flex items-end justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[#939892]">Aktivitas</p>
-            <h2 className="mt-1 text-lg font-bold">Daftar Pengeluaran</h2>
+            <p className="eyebrow">Aktivitas</p>
+            <h2 className="section-title mt-1.5">Daftar Pengeluaran</h2>
           </div>
-          <span className="text-[11px] text-[#858A85]">{expenses.length} transaksi</span>
+          <span className="caption tabular-nums">{expenses.length} transaksi</span>
         </div>
         <LiquidSegmentedControl options={periods} value={period} onChange={setPeriod} className="mb-4 w-full" />
         <label className="mb-3 flex items-center gap-2.5 rounded-2xl border border-[#EFEFED] bg-white px-4">
@@ -69,11 +73,11 @@ export default function Pengeluaran() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Cari pengeluaran..."
-            className="w-full bg-transparent py-3 text-xs outline-none placeholder:text-[#A5AAA5]"
+            className="w-full bg-transparent py-3 text-xs outline-none placeholder:text-[#6B7280]"
           />
         </label>
-        {search && !expenses.length ? (
-          <div className="pb-32"><EmptyState title="Tidak ditemukan" description="Coba kata kunci lain." actionLabel="Catat Pengeluaran" actionType="expense" /></div>
+        {loading ? <ListSkeleton /> : search && !expenses.length ? (
+          <EmptyState title="Tidak ditemukan" description="Coba kata kunci lain." actionLabel="Catat Pengeluaran" actionType="expense" />
         ) : (
           <TransactionGroupList
             period={period}

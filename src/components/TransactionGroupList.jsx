@@ -9,8 +9,8 @@ const monthShort = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep
 
 function Items({ items }) {
   return (
-    <div className="px-4">
-      {items.map((item) => <TransactionListItem key={item.id} transaction={item} />)}
+    <div className="px-card">
+      {items.map((item, index) => <TransactionListItem key={item.id} transaction={item} className="motion-enter" style={{ '--stagger-index': Math.min(index, 7) }} />)}
     </div>
   );
 }
@@ -60,7 +60,7 @@ export default function TransactionGroupList({
 
   if (!transactions.length) {
     return (
-      <div className="pb-32">
+      <div>
         <EmptyState
           title={title === 'Daftar Pengeluaran' ? 'Belum ada catatan pengeluaran' : 'Belum ada pemasukan'}
           description={emptyDescription}
@@ -75,13 +75,13 @@ export default function TransactionGroupList({
     const distinctYears = new Set(dayGroups.map((group) => group.year)).size;
     let previousYear = null;
     return (
-      <div className="space-y-3 pb-32">
-        {dayGroups.map((group) => {
+      <div className="space-y-item">
+        {dayGroups.map((group, groupIndex) => {
           const showYear = distinctYears > 1 && (previousYear !== group.year);
           previousYear = group.year;
           return (
-            <div key={group.key}>
-              {showYear && <p className="mb-2 mt-1 px-1 text-xs font-bold text-[#6F756F]">{group.year}</p>}
+            <div key={group.key} className="motion-enter" style={{ '--stagger-index': Math.min(groupIndex, 7) }}>
+              {showYear && <p className="eyebrow mb-2 mt-1 px-1">{group.year}</p>}
               <section className="card overflow-hidden">
                 <SectionHeader
                   title={formatDayLabel(group, distinctYears > 1)}
@@ -103,15 +103,15 @@ export default function TransactionGroupList({
 
   if (period === 'Mingguan') {
     return (
-      <div className="space-y-5 pb-32">
-        {weekGroups.map((month) => (
-          <section key={month.key}>
+      <div className="space-y-item">
+        {weekGroups.map((month, monthIndex) => (
+          <section key={month.key} className="motion-enter" style={{ '--stagger-index': Math.min(monthIndex, 7) }}>
             <div className="mb-2 px-1">
               <SectionHeader title={formatMonthLabel(month.year, month.month)} total={month.total} count={month.count} tone={tone} />
             </div>
-            <div className="space-y-3">
-              {month.weeks.map((week) => (
-                <section key={week.key} className="card overflow-hidden">
+            <div className="space-y-item">
+              {month.weeks.map((week, weekIndex) => (
+                <section key={week.key} className="card motion-enter overflow-hidden" style={{ '--stagger-index': Math.min(weekIndex, 7) }}>
                   <SectionHeader
                     title={`Minggu ${week.week} · ${week.start}${week.start !== week.end ? `-${week.end}` : ''} ${monthShort[month.month - 1]}`}
                     total={week.total}
@@ -132,18 +132,18 @@ export default function TransactionGroupList({
   }
 
   return (
-    <div className="space-y-5 pb-32">
-      {monthGroups.map((year) => (
-        <section key={year.key}>
+    <div className="space-y-3">
+      {monthGroups.map((year, yearIndex) => (
+        <section key={year.key} className="motion-enter" style={{ '--stagger-index': Math.min(yearIndex, 7) }}>
           <div className="mb-2 flex items-center justify-between px-1 py-2">
-            <h3 className="text-base font-bold text-[#303A34]">{year.year}</h3>
-            <p className={`text-sm font-bold ${type === 'income' ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>
+            <h3 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">{year.year}</h3>
+            <p className={`money text-[13px] font-semibold ${type === 'income' ? 'text-[#15803D]' : 'text-[#DC2626]'}`}>
               {type === 'income' ? '+' : '-'}Rp {new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(Math.abs(year.total))}
             </p>
           </div>
           <div className="space-y-3">
-            {year.months.map((month) => (
-              <section key={month.key} className="card overflow-hidden">
+            {year.months.map((month, monthIndex) => (
+              <section key={month.key} className="card motion-enter overflow-hidden" style={{ '--stagger-index': Math.min(monthIndex, 7) }}>
                 <SectionHeader
                   title={formatMonthLabel(month.year, month.month)}
                   total={month.total}

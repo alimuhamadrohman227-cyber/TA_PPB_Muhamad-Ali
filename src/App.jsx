@@ -34,7 +34,7 @@ function ProtectedLayout() {
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   return (
-    <div className="app-shell relative mx-auto min-h-screen w-full max-w-md bg-[#F7F7F5] px-4 md:max-w-2xl md:px-6">
+    <div className="app-shell relative mx-auto min-h-screen w-full max-w-md bg-[#F7F7F5] px-page md:max-w-2xl md:px-6">
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/pemasukan" element={<Pemasukan />} />

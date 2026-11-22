@@ -3,11 +3,12 @@
 @tailwind utilities;
 
 :root {
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-feature-settings: "cv11", "ss01";
   color: #202823;
   background: #f7f7f5;
   --nav-bottom: max(20px, calc(env(safe-area-inset-bottom, 0px) + 12px));
-  --nav-height: 58px;
+  --nav-height: 60px;
   --nav-glass-blur: 0px;
   --nav-glass-alpha: 0.12;
   --nav-spring-duration: 480ms;
@@ -16,13 +17,22 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-variant-numeric: lining-nums;
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; min-height: 100vh; }
+body { margin: 0; min-width: 320px; min-height: 100vh; overflow-x: clip; }
 button, input, select, textarea { font: inherit; }
 button { -webkit-tap-highlight-color: transparent; }
-.app-shell { padding-bottom: calc(var(--nav-height) + var(--nav-bottom) + 24px); }
+.app-shell { padding-bottom: calc(var(--nav-height) + var(--nav-bottom) + 32px); }
+.has-fab-content { padding-bottom: 64px; }
+.app-shell button:not(.nav-tab),
+.app-shell a:not(.nav-tab) {
+  transition: transform 150ms ease, background-color 150ms ease, color 150ms ease,
+    border-color 150ms ease, box-shadow 150ms ease, opacity 150ms ease;
+}
+.app-shell button:not(.nav-tab):active,
+.app-shell a:active { transform: scale(0.98); }
 .nav-position { bottom: var(--nav-bottom); }
 .fab-solid {
   bottom: calc(var(--nav-bottom) + var(--nav-height) + 16px);
@@ -60,10 +70,11 @@ button { -webkit-tap-highlight-color: transparent; }
   padding: 8px 0;
   border-radius: 9999px;
   color: rgba(255, 255, 255, 0.65);
-  font-size: 9px;
-  font-weight: 400;
+  font-size: 11px;
+  font-weight: 600;
   line-height: 1;
   white-space: nowrap;
+  letter-spacing: -0.035em;
   transition: color 200ms ease, transform 150ms ease;
   -webkit-tap-highlight-color: transparent;
 }
@@ -152,5 +163,42 @@ select:-webkit-autofill {
   .page-pad { @apply pt-7; }
   .card { @apply rounded-3xl border border-[#EFEFED] bg-white shadow-card; }
   .field { @apply w-full rounded-2xl border border-[#E8E9E6] bg-white px-4 py-3.5 text-sm text-[#202823] outline-none transition focus:border-[#24332C] focus:ring-2 focus:ring-[#24332C]/10; }
-  .label { @apply mb-2 block text-xs font-semibold tracking-wide text-[#727873]; }
+  .label { @apply mb-2 block text-xs font-semibold tracking-wide text-[#6B7280]; }
+  .eyebrow { @apply text-eyebrow uppercase text-[#6B7280]; }
+  .page-title { @apply text-page-title text-[#202823]; }
+  .section-title { @apply text-section-title text-[#202823]; }
+  .card-title { @apply text-card-title text-[#303A34]; }
+  .body-copy { @apply text-body text-[#39443D]; }
+  .caption { @apply text-caption text-[#6B7280]; }
+  .money { font-variant-numeric: tabular-nums; }
+}
+
+svg { stroke-width: 1.75; }
+.motion-enter {
+  animation: motion-enter 320ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(var(--stagger-index, 0) * 40ms);
+}
+.skeleton {
+  background: #E5E7E4;
+  animation: skeleton-pulse 1.25s ease-in-out infinite;
+}
+@keyframes motion-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes skeleton-pulse {
+  50% { opacity: 0.55; }
+}
+@media (max-width: 359px) {
+  .dashboard-heading .page-title { font-size: 25px; }
+  .dashboard-heading .heading-action { padding-left: 9px; padding-right: 9px; font-size: 10px; }
+  .nav-tab { letter-spacing: -0.055em; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .motion-enter,
+  .skeleton { animation: none; }
+  .app-shell button:not(.nav-tab),
+  .app-shell a:not(.nav-tab) { transition-duration: 0ms; }
+  .app-shell button:not(.nav-tab):active,
+  .app-shell a:active { transform: none; }
 }

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowDownLeft, ArrowLeft, ArrowRight, ArrowUpRight, ChevronDown, Download, RotateCcw, ShieldAlert, X } from 'lucide-react';
+import AnimatedCurrency from '../components/AnimatedCurrency.jsx';
 import EmptyState from '../components/EmptyState.jsx';
 import LiquidSegmentedControl from '../components/LiquidSegmentedControl.jsx';
+import { ListSkeleton, SummarySkeleton } from '../components/LoadingSkeleton.jsx';
 import PageHeading from '../components/PageHeading.jsx';
 import PeriodPicker from '../components/PeriodPicker.jsx';
 import { getTransactions, resetAllTransactions, resetMonthTransactions } from '../services/api.js';
@@ -61,7 +63,7 @@ function ConfirmationDialog({
           <h2 id="reset-dialog-title" className="text-base font-bold text-[#303A34]">
             {isPeriod ? 'Reset Data Periode' : 'Reset Semua Data'}
           </h2>
-          <button type="button" onClick={onClose} disabled={isDeleting} aria-label="Tutup dialog" className="grid h-9 w-9 place-items-center rounded-full text-[#858A85] disabled:opacity-50">
+          <button type="button" onClick={onClose} disabled={isDeleting} aria-label="Tutup dialog" className="grid h-9 w-9 place-items-center rounded-full text-[#6B7280] disabled:opacity-50">
             <X size={19} />
           </button>
         </div>
@@ -70,7 +72,7 @@ function ConfirmationDialog({
             <p className="text-sm leading-6 text-[#59635C]">
               Hapus {count} transaksi pada {periodName}? Tindakan ini tidak bisa dibatalkan.
             </p>
-            {count === 0 && <p className="mt-3 text-xs font-medium text-[#8A8F8A]">Tidak ada transaksi pada periode ini</p>}
+            {count === 0 && <p className="caption mt-3">Tidak ada transaksi pada periode ini</p>}
           </>
         ) : (
           <>
@@ -116,6 +118,7 @@ function ConfirmationDialog({
 
 export default function Rekap() {
   const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('Bulanan');
   const [selectedMonth, setSelectedMonth] = useState(() => new Date());
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -130,7 +133,9 @@ export default function Rekap() {
   }, []);
 
   useEffect(() => {
-    reloadTransactions().catch((cause) => setError(getErrorMessage(cause, 'Data transaksi gagal dimuat.')));
+    reloadTransactions()
+      .catch((cause) => setError(getErrorMessage(cause, 'Data transaksi gagal dimuat.')))
+      .finally(() => setLoading(false));
   }, [reloadTransactions]);
 
   const filtered = useMemo(() => transactions.filter((item) => {
@@ -261,33 +266,33 @@ export default function Rekap() {
           onClose={closePicker}
         />
       )}
-      <div className="flex flex-col space-y-6">
-      <section className="rounded-[28px] bg-[#24332C] p-5 text-white shadow-xl shadow-[#24332C]/10">
-        <p className="text-xs text-white/65">Ringkasan {period === 'Semua' ? 'semua periode' : periodName}</p>
+      <div className="flex flex-col space-y-section">
+      {loading ? <SummarySkeleton /> : <section className="motion-enter rounded-[28px] bg-[#24332C] p-card text-white shadow-xl shadow-[#24332C]/10">
+        <p className="caption text-white/80">Ringkasan {period === 'Semua' ? 'semua periode' : periodName}</p>
         <div className="mt-5 space-y-4">
-          <div className="flex items-center justify-between"><span className="flex items-center gap-2 text-xs text-white/75"><ArrowDownLeft size={16} className="text-[#B9E6BC]" /> Total Pemasukan</span><strong className="text-sm">{currency(income)}</strong></div>
-          <div className="flex items-center justify-between"><span className="flex items-center gap-2 text-xs text-white/75"><ArrowUpRight size={16} className="text-[#FFB6A8]" /> Total Pengeluaran</span><strong className="text-sm">{currency(expenseTotal)}</strong></div>
+          <div className="flex items-center justify-between"><span className="flex items-center gap-2 text-body text-white/85"><ArrowDownLeft size={16} className="text-[#B9E6BC]" /> Total Pemasukan</span><strong className="money text-sm"><AnimatedCurrency amount={income} /></strong></div>
+          <div className="flex items-center justify-between"><span className="flex items-center gap-2 text-body text-white/85"><ArrowUpRight size={16} className="text-[#FFB6A8]" /> Total Pengeluaran</span><strong className="money text-sm"><AnimatedCurrency amount={expenseTotal} /></strong></div>
           <div className="h-px bg-white/10" />
-          <div className="flex items-center justify-between"><span className="text-xs text-white/75">Selisih</span><strong className="text-lg">{currency(balance)}</strong></div>
+          <div className="flex items-center justify-between"><span className="text-body text-white/85">Selisih</span><strong className="money text-lg"><AnimatedCurrency amount={balance} /></strong></div>
         </div>
-        <div className={`mt-5 rounded-2xl px-4 py-3 ${balance > 0 ? 'bg-[#DCFCE7] text-[#16A34A]' : balance < 0 ? 'bg-[#FEE2E2] text-[#DC2626]' : 'bg-white/15 text-white'}`}>
+        <div className={`mt-5 rounded-2xl px-4 py-3 ${balance > 0 ? 'bg-[#DCFCE7] text-[#166534]' : balance < 0 ? 'bg-[#FEE2E2] text-[#B91C1C]' : 'bg-white/15 text-white'}`}>
           <p className="text-[10px] font-bold tracking-[0.14em]">{balance > 0 ? 'SURPLUS' : balance < 0 ? 'DEFISIT' : 'NETRAL'}</p>
-          <p className="mt-1 text-[11px] opacity-80">{income ? `${usage}% dari pemasukan digunakan` : 'Belum ada pemasukan untuk menghitung pemakaian'}</p>
+          <p className="caption tabular-nums mt-1 text-[#39443D]">{income ? `${usage}% dari pemasukan digunakan` : 'Belum ada pemasukan untuk menghitung pemakaian'}</p>
         </div>
-      </section>
+      </section>}
       <section>
-        <div className="mb-4 flex items-end justify-between"><div><p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[#939892]">Rincian</p><h2 className="mt-1 text-lg font-bold">Per Kategori</h2></div><span className="text-[11px] text-[#858A85]">{expenses.length} transaksi</span></div>
-        {categoryRows.length ? <div className="card divide-y divide-[#F1F1EF] px-4">{categoryRows.map((row, index) => {
+        <div className="mb-4 flex items-end justify-between"><div><p className="eyebrow">Rincian</p><h2 className="section-title mt-1.5">Per Kategori</h2></div><span className="caption tabular-nums">{expenses.length} transaksi</span></div>
+        {loading ? <ListSkeleton /> : categoryRows.length ? <div className="card motion-enter divide-y divide-[#F1F1EF] px-card">{categoryRows.map((row, index) => {
           const percentage = expenseTotal ? Math.round((row.amount / expenseTotal) * 100) : 0;
-          return <div key={row.category} className="py-4"><div className="flex items-center justify-between"><div><p className="text-sm font-semibold">{row.category}</p><p className="mt-1 text-[10px] text-[#8A8F8A]">{row.count}x transaksi</p></div><div className="text-right"><p className="text-sm font-bold">{currency(row.amount)}</p><p className="mt-1 text-[10px] text-[#858A85]">{percentage}%</p></div></div><div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#F0F1EE]"><div className="h-full rounded-full" style={{ width: `${percentage}%`, backgroundColor: ['#688B70', '#D6A75D', '#7293A3', '#C77C70', '#9B8AB3'][index % 5] }} /></div></div>;
+          return <div key={row.category} className="motion-enter py-3.5" style={{ '--stagger-index': Math.min(index, 7) }}><div className="flex items-center justify-between"><div><p className="text-body font-semibold">{row.category}</p><p className="caption mt-1">{row.count}x transaksi</p></div><div className="text-right"><p className="money text-body font-bold">{currency(row.amount)}</p><p className="caption money mt-1">{percentage}%</p></div></div><div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#F0F1EE]"><div className="h-full rounded-full" style={{ width: `${percentage}%`, backgroundColor: ['#688B70', '#D6A75D', '#7293A3', '#C77C70', '#9B8AB3'][index % 5] }} /></div></div>;
         })}</div> : <EmptyState title="Belum ada pengeluaran" description="Rincian kategori akan muncul setelah transaksi dicatat." />}
       </section>
       <section>
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.15em] text-[#939892]">Kelola Data</p>
-        <div className="card divide-y divide-[#F1F1EF] px-4">
-          <button onClick={exportCsv} className="flex w-full items-center gap-3 py-4 text-left"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#EDF2EC] text-[#486253]"><Download size={18} /></span><span className="flex-1"><strong className="block text-xs">Ekspor Data ke CSV</strong><small className="mt-1 block text-[10px] text-[#8A8F8A]">Unduh seluruh catatan transaksi</small></span><ArrowRight size={16} className="text-[#A0A5A0]" /></button>
-          {period !== 'Semua' && <button onClick={() => beginReset('period')} className="flex w-full items-center gap-3 py-4 text-left"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#FFF6E8] text-[#B98335]"><RotateCcw size={17} /></span><span className="flex-1"><strong className="block text-xs">Reset Data Periode Ini</strong><small className="mt-1 block text-[10px] text-[#8A8F8A]">Hapus transaksi pada {periodName}</small></span><ArrowRight size={16} className="text-[#A0A5A0]" /></button>}
-          <button onClick={() => beginReset('all')} className="flex w-full items-center gap-3 py-4 text-left"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#FDECEC] text-[#C45151]"><ShieldAlert size={18} /></span><span className="flex-1"><strong className="block text-xs text-[#C45151]">Reset Semua Data</strong><small className="mt-1 block text-[10px] text-[#8A8F8A]">Hapus seluruh catatan transaksi</small></span><ArrowRight size={16} className="text-[#A0A5A0]" /></button>
+        <p className="eyebrow mb-3">Kelola Data</p>
+        <div className="card divide-y divide-[#F1F1EF] px-card">
+          <button onClick={exportCsv} className="flex w-full items-center gap-3 py-4 text-left"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#EDF2EC] text-[#486253]"><Download size={18} /></span><span className="flex-1"><strong className="block text-xs">Ekspor Data ke CSV</strong><small className="caption mt-1 block">Unduh seluruh catatan transaksi</small></span><ArrowRight size={16} className="text-[#A0A5A0]" /></button>
+          {period !== 'Semua' && <button onClick={() => beginReset('period')} className="flex w-full items-center gap-3 py-4 text-left"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#FFF6E8] text-[#B98335]"><RotateCcw size={17} /></span><span className="flex-1"><strong className="block text-xs">Reset Data Periode Ini</strong><small className="caption mt-1 block">Hapus transaksi pada {periodName}</small></span><ArrowRight size={16} className="text-[#A0A5A0]" /></button>}
+          <button onClick={() => beginReset('all')} className="flex w-full items-center gap-3 py-4 text-left"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#FDECEC] text-[#C45151]"><ShieldAlert size={18} /></span><span className="flex-1"><strong className="block text-xs text-[#C45151]">Reset Semua Data</strong><small className="caption mt-1 block">Hapus seluruh catatan transaksi</small></span><ArrowRight size={16} className="text-[#A0A5A0]" /></button>
         </div>
       </section>
       </div>

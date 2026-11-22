@@ -55,10 +55,10 @@ export default function Profil() {
 
   return (
     <main className="page-pad pb-6">
-      <PageHeading title="Profil" />
+      <PageHeading title="Profil" subtitle="IDENTITAS PENGGUNA" />
       {error && <p role="alert" className="mb-4 rounded-2xl bg-[#FEF2F2] px-4 py-3 text-sm text-[#B91C1C]">{error}</p>}
       {passwordSuccess && <p role="status" className="mb-4 rounded-2xl bg-[#EDF2EC] px-4 py-3 text-sm text-[#486253]">Kata sandi berhasil diperbarui</p>}
-      <section className="card flex items-center gap-4 p-5">
+      <section className="card motion-enter flex items-center gap-4 p-card">
         <div className="grid h-16 w-16 shrink-0 place-items-center rounded-[22px] bg-[#25332C] text-lg font-bold text-[#D3E5C7]">{initials}</div>
         <div className="min-w-0 flex-1">
           {editing ? (
@@ -71,8 +71,8 @@ export default function Profil() {
             </form>
           ) : (
             <>
-              <p className="truncate text-base font-bold">{name}</p>
-              <p className="mt-1 truncate text-xs text-[#6B7280]">{user?.email}</p>
+              <p className="card-title truncate">{name}</p>
+              <p className="caption mt-1 truncate">{user?.email}</p>
             </>
           )}
         </div>
@@ -83,26 +83,26 @@ export default function Profil() {
         )}
       </section>
 
-      <section className="mt-6">
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.15em] text-[#939892]">Pengaturan Akun</p>
-        <div className="card divide-y divide-[#F1F1EF] px-4">
-          <button type="button" onClick={() => { setPasswordSuccess(false); setPasswordSheetOpen(true); }} className="flex w-full items-center gap-3.5 py-4 text-left">
+      <section className="mt-section">
+        <p className="eyebrow mb-3">Pengaturan Akun</p>
+        <div className="card divide-y divide-[#F1F1EF] px-card">
+          <button type="button" onClick={() => { setPasswordSuccess(false); setPasswordSheetOpen(true); }} className="flex w-full items-center gap-3.5 py-3.5 text-left transition-transform active:scale-[0.98]">
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#F2F4F0] text-[#596A5F]"><KeyRound size={18} /></span>
-            <span className="flex-1"><strong className="block text-sm font-semibold">Ganti Kata Sandi</strong><small className="mt-1 block text-[10px] text-[#858A85]">Perbarui kata sandi akunmu</small></span>
+            <span className="flex-1"><strong className="card-title block">Ganti Kata Sandi</strong><small className="caption mt-1 block">Perbarui kata sandi akunmu</small></span>
             <ChevronRight size={17} className="text-[#A0A5A0]" />
           </button>
         </div>
       </section>
 
-      <section className="mt-6">
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.15em] text-[#939892]">Tentang</p>
-        <div className="card overflow-hidden">
-          <div className="flex items-center gap-3.5 p-4"><span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#25332C] text-[#D3E5C7]"><UserRound size={20} /></span><div><p className="text-sm font-bold">Catatan Keuangan</p><p className="mt-1 text-[10px] text-[#858A85]">Versi 1.0.0 PWA</p></div></div>
-          <p className="border-t border-[#F1F1EF] px-4 py-4 text-xs leading-5 text-[#777E78]">Aplikasi sederhana untuk membantu mencatat pemasukan, pengeluaran, dan memahami kebiasaan keuangan dengan lebih baik.</p>
+      <section className="mt-section">
+        <p className="eyebrow mb-3">Tentang</p>
+        <div className="card motion-enter overflow-hidden">
+          <div className="flex items-center gap-3.5 p-card"><span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#25332C] text-[#D3E5C7]"><UserRound size={20} /></span><div><p className="card-title">Catatan Keuangan</p><p className="caption mt-1">Versi 1.0.0 PWA</p></div></div>
+          <p className="body-copy border-t border-[#F1F1EF] px-card py-4">Aplikasi sederhana untuk membantu mencatat pemasukan, pengeluaran, dan memahami kebiasaan keuangan dengan lebih baik.</p>
         </div>
       </section>
 
-      <button type="button" onClick={confirmLogout} className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl border border-[#FECACA] bg-[#FEF2F2] py-4 text-sm font-semibold text-[#B91C1C] transition hover:bg-[#FEE2E2]">
+      <button type="button" onClick={confirmLogout} className="mt-section flex w-full items-center justify-center gap-2 rounded-2xl border border-[#FECACA] bg-[#FEF2F2] py-4 text-sm font-semibold text-[#B91C1C] transition hover:bg-[#FEE2E2] active:scale-[0.98]">
         <LogOut size={17} /> Keluar
       </button>
       {passwordSheetOpen && (
