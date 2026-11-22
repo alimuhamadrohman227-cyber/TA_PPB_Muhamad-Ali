@@ -209,11 +209,16 @@ function createExpressApp({ sql, env } = {}) {
 
   app.post('/api/transactions', authenticateToken, async (req, res) => {
     const { type } = req.body ?? {};
+    const hasId = Object.prototype.hasOwnProperty.call(req.body ?? {}, 'id');
+    const id = hasId ? req.body.id : undefined;
     const amount = Number(req.body?.amount);
     const title = String(req.body?.title ?? '').trim();
     const category = String(req.body?.category ?? '').trim();
     const date = req.body?.date || new Date().toISOString().split('T')[0];
     const note = String(req.body?.note ?? '').trim();
+    if (hasId && (typeof id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))) {
+      return res.status(400).json({ message: 'ID transaksi tidak valid.' });
+    }
     if (!['income', 'expense'].includes(type)) {
       return res.status(400).json({ message: 'Tipe transaksi harus pemasukan atau pengeluaran.' });
     }
@@ -223,10 +228,18 @@ function createExpressApp({ sql, env } = {}) {
     if (!title) return res.status(400).json({ message: 'Judul transaksi tidak boleh kosong.' });
     if (!category) return res.status(400).json({ message: 'Kategori transaksi tidak boleh kosong.' });
     try {
-      const result = await runQuery(
-        'INSERT INTO transactions (user_id, type, amount, title, category, date, note) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-        [req.user.id, type, amount, title, category, date, note]
-      );
+      const result = hasId
+        ? await runQuery(
+          'INSERT INTO transactions (id, user_id, type, amount, title, category, date, note) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (id) DO UPDATE SET type = EXCLUDED.type, amount = EXCLUDED.amount, title = EXCLUDED.title, category = EXCLUDED.category, date = EXCLUDED.date, note = EXCLUDED.note WHERE transactions.user_id = EXCLUDED.user_id RETURNING *',
+          [id, req.user.id, type, amount, title, category, date, note]
+        )
+        : await runQuery(
+          'INSERT INTO transactions (user_id, type, amount, title, category, date, note) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+          [req.user.id, type, amount, title, category, date, note]
+        );
+      if (hasId && result.rows.length === 0) {
+        return res.status(409).json({ message: 'ID transaksi sudah digunakan.' });
+      }
       res.status(201).json(result.rows[0]);
     } catch (err) {
       res.status(500).json({ message: err.message });

@@ -1,6 +1,7 @@
 import { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   clearAuthStorage,
+  deleteUserOfflineData,
   getCurrentUser,
   getStoredToken,
   loginRequest,
@@ -9,13 +10,20 @@ import {
   updateCurrentUserProfile,
   USER_KEY,
 } from '../services/api.js';
+import { startSyncListeners, stopSyncListeners } from '../services/sync.js';
 
 export const AuthContext = createContext(null);
 
 const readStoredUser = () => {
   try {
     const raw = localStorage.getItem(USER_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const user = JSON.parse(raw);
+    if (!user?.id) {
+      clearAuthStorage();
+      return null;
+    }
+    return { ...user, id: String(user.id) };
   } catch {
     clearAuthStorage();
     return null;
@@ -25,7 +33,7 @@ const readStoredUser = () => {
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(getStoredToken);
   const [user, setUser] = useState(readStoredUser);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => Boolean(getStoredToken() && !readStoredUser()));
 
   const acceptSession = useCallback(({ token: nextToken, user: nextUser }) => {
     storeAuthSession(nextToken, nextUser);
@@ -33,11 +41,15 @@ export function AuthProvider({ children }) {
     setUser(nextUser);
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    if (user?.id) {
+      stopSyncListeners(user.id);
+      await deleteUserOfflineData(user.id);
+    }
     clearAuthStorage();
     setToken(null);
     setUser(null);
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     let active = true;
@@ -53,11 +65,13 @@ export function AuthProvider({ children }) {
         if (!active) return;
         localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
         setUser(currentUser);
-      } catch {
+      } catch (error) {
         if (!active) return;
-        clearAuthStorage();
-        setToken(null);
-        setUser(null);
+        if ([401, 403].includes(error?.response?.status)) {
+          clearAuthStorage();
+          setToken(null);
+          setUser(null);
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -66,7 +80,12 @@ export function AuthProvider({ children }) {
     return () => {
       active = false;
     };
-  }, []);
+  }, [token]);
+
+  useEffect(() => {
+    if (!token || !user?.id) return undefined;
+    return startSyncListeners(user.id);
+  }, [token, user?.id]);
 
   const login = useCallback(async (credentials) => {
     acceptSession(await loginRequest(credentials));

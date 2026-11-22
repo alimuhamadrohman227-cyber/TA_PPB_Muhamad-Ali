@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ArrowDownLeft, ArrowUpRight, CalendarDays, ChevronDown, ChevronRight, Clock3 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import EmptyState from '../components/EmptyState.jsx';
@@ -6,22 +6,12 @@ import AnimatedCurrency from '../components/AnimatedCurrency.jsx';
 import { ListSkeleton, SummarySkeleton } from '../components/LoadingSkeleton.jsx';
 import PageHeading from '../components/PageHeading.jsx';
 import TransactionListItem from '../components/TransactionListItem.jsx';
-import { getTransactions } from '../services/api.js';
+import useTransactions from '../hooks/useTransactions.js';
 import { isSameMonth, monthLabel } from '../utils/format.js';
-import { getErrorMessage } from '../utils/errors.js';
 
 export default function Home() {
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { transactions, loading, error } = useTransactions();
   const [selectedMonth, setSelectedMonth] = useState(() => new Date());
-
-  useEffect(() => {
-    getTransactions()
-      .then(setTransactions)
-      .catch((cause) => setError(getErrorMessage(cause, 'Data transaksi gagal dimuat.')))
-      .finally(() => setLoading(false));
-  }, []);
 
   const monthTransactions = transactions.filter((item) => isSameMonth(item.date, selectedMonth));
   const income = monthTransactions

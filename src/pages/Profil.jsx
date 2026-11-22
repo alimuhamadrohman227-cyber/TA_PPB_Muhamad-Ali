@@ -5,6 +5,48 @@ import ChangePasswordSheet from '../components/ChangePasswordSheet.jsx';
 import PageHeading from '../components/PageHeading.jsx';
 import useAuth from '../hooks/useAuth.js';
 import { getApiErrorMessage } from '../services/api.js';
+import { getOutbox } from '../services/offlineStore.js';
+import { syncPendingTransactions } from '../services/sync.js';
+
+function LogoutWarning({ count, busy, error, onCancel, onConfirm }) {
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape' && !busy) onCancel();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [busy, onCancel]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[80] flex items-end justify-center bg-black/35 sm:items-center sm:px-4"
+      onClick={() => { if (!busy) onCancel(); }}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="logout-warning-title"
+        className="w-full max-w-md rounded-t-3xl bg-white px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5 shadow-[0_-12px_40px_rgba(0,0,0,0.16)] sm:rounded-3xl sm:pb-5"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <h2 id="logout-warning-title" className="text-base font-bold text-[#303A34]">Perubahan belum tersinkron</h2>
+        <p className="mt-3 text-sm leading-6 text-[#59635C]">
+          Ada {count} perubahan belum tersinkron. Keluar akan menghapusnya.
+        </p>
+        {error && <p role="alert" className="mt-3 rounded-2xl bg-[#FEF2F2] px-3 py-2.5 text-sm text-[#B91C1C]">{error}</p>}
+        <div className="mt-5 flex gap-3">
+          <button type="button" onClick={onCancel} disabled={busy} className="min-h-11 flex-1 rounded-xl border border-[#E8E9E6] text-sm font-semibold text-[#59635C] disabled:opacity-50">Batal</button>
+          <button type="button" onClick={onConfirm} disabled={busy} className="min-h-11 flex-1 rounded-xl bg-[#C45151] text-sm font-semibold text-white disabled:opacity-50">{busy ? 'Memproses...' : 'Tetap keluar'}</button>
+        </div>
+      </section>
+    </div>
+  );
+}
 
 export default function Profil() {
   const { user, logout, updateProfile } = useAuth();
@@ -15,6 +57,9 @@ export default function Profil() {
   const [error, setError] = useState('');
   const [passwordSheetOpen, setPasswordSheetOpen] = useState(false);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [logoutWarning, setLogoutWarning] = useState(0);
+  const [logoutProcessing, setLogoutProcessing] = useState(false);
+  const [logoutError, setLogoutError] = useState('');
   const name = user?.name ?? '';
   const initials = name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'CK';
   const closePasswordSheet = useCallback(() => setPasswordSheetOpen(false), []);
@@ -47,10 +92,45 @@ export default function Profil() {
     }
   };
 
-  const confirmLogout = () => {
-    if (!window.confirm('Yakin ingin keluar?')) return;
-    logout();
-    navigate('/login', { replace: true });
+  const finishLogout = async () => {
+    setLogoutProcessing(true);
+    setLogoutError('');
+    try {
+      await logout();
+      navigate('/login', { replace: true });
+    } catch (cause) {
+      setLogoutError(getApiErrorMessage(cause, 'Data offline gagal dihapus.'));
+    } finally {
+      setLogoutProcessing(false);
+    }
+  };
+
+  const confirmLogout = async () => {
+    if (!user?.id || logoutProcessing) return;
+    setLogoutProcessing(true);
+    setLogoutError('');
+    try {
+      if (typeof navigator === 'undefined' || navigator.onLine !== false) {
+        await syncPendingTransactions(user.id, { retryFailed: true, force: true });
+      }
+      const outbox = await getOutbox(user.id);
+      if (outbox.length) {
+        setLogoutWarning(outbox.length);
+      } else {
+        await logout();
+        navigate('/login', { replace: true });
+      }
+    } catch (cause) {
+      setLogoutError(getApiErrorMessage(cause, 'Perubahan offline gagal diperiksa.'));
+      try {
+        const outbox = await getOutbox(user.id);
+        if (outbox.length) setLogoutWarning(outbox.length);
+      } catch (checkError) {
+        setLogoutError(getApiErrorMessage(checkError, 'Perubahan offline gagal diperiksa.'));
+      }
+    } finally {
+      setLogoutProcessing(false);
+    }
   };
 
   return (
@@ -102,9 +182,19 @@ export default function Profil() {
         </div>
       </section>
 
-      <button type="button" onClick={confirmLogout} className="mt-section flex w-full items-center justify-center gap-2 rounded-2xl border border-[#FECACA] bg-[#FEF2F2] py-4 text-sm font-semibold text-[#B91C1C] transition hover:bg-[#FEE2E2] active:scale-[0.98]">
-        <LogOut size={17} /> Keluar
+      {logoutError && !logoutWarning && <p role="alert" className="mt-4 rounded-2xl bg-[#FEF2F2] px-4 py-3 text-sm text-[#B91C1C]">{logoutError}</p>}
+      <button type="button" onClick={confirmLogout} disabled={logoutProcessing} className="mt-section flex w-full items-center justify-center gap-2 rounded-2xl border border-[#FECACA] bg-[#FEF2F2] py-4 text-sm font-semibold text-[#B91C1C] transition hover:bg-[#FEE2E2] active:scale-[0.98] disabled:opacity-60">
+        <LogOut size={17} /> {logoutProcessing ? 'Memproses...' : 'Keluar'}
       </button>
+      {logoutWarning > 0 && (
+        <LogoutWarning
+          count={logoutWarning}
+          busy={logoutProcessing}
+          error={logoutError}
+          onCancel={() => { setLogoutWarning(0); setLogoutError(''); }}
+          onConfirm={finishLogout}
+        />
+      )}
       {passwordSheetOpen && (
         <ChangePasswordSheet onClose={closePasswordSheet} onSuccess={passwordUpdated} />
       )}

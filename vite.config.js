@@ -12,21 +12,28 @@ export default defineConfig({
         name: 'Catatan Keuangan',
         short_name: 'Keuangan',
         description: 'Aplikasi pencatatan pemasukan dan pengeluaran pribadi.',
+        lang: 'id',
         start_url: '/',
         scope: '/',
         display: 'standalone',
         orientation: 'portrait',
-        theme_color: '#24332C',
+        theme_color: '#465A4F',
         background_color: '#F7F7F5',
         icons: [
-          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
       },
       workbox: {
         navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api\//],
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,ttf,otf}'],
         runtimeCaching: [
+          ...['GET', 'POST', 'PUT', 'DELETE'].map((method) => ({
+            urlPattern: /\/api\//,
+            handler: 'NetworkOnly',
+            method,
+          })),
           {
             urlPattern: /\.(?:woff2?|ttf|otf)$/i,
             handler: 'CacheFirst',

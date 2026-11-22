@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Search, TrendingDown } from 'lucide-react';
 import AnimatedCurrency from '../components/AnimatedCurrency.jsx';
 import EmptyState from '../components/EmptyState.jsx';
@@ -6,9 +6,8 @@ import LiquidSegmentedControl from '../components/LiquidSegmentedControl.jsx';
 import { ListSkeleton, SummarySkeleton } from '../components/LoadingSkeleton.jsx';
 import PageHeading from '../components/PageHeading.jsx';
 import TransactionGroupList from '../components/TransactionGroupList.jsx';
-import { getTransactions } from '../services/api.js';
+import useTransactions from '../hooks/useTransactions.js';
 import { isSameMonth } from '../utils/format.js';
-import { getErrorMessage } from '../utils/errors.js';
 
 const periods = [
   { value: 'Harian', label: 'Harian' },
@@ -17,19 +16,10 @@ const periods = [
 ];
 
 export default function Pengeluaran() {
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { transactions, loading, error } = useTransactions();
   const [period, setPeriod] = useState('Bulanan');
   const [search, setSearch] = useState('');
-  const [error, setError] = useState('');
   const [now] = useState(() => new Date());
-
-  useEffect(() => {
-    getTransactions()
-      .then(setTransactions)
-      .catch((cause) => setError(getErrorMessage(cause, 'Data transaksi gagal dimuat.')))
-      .finally(() => setLoading(false));
-  }, []);
 
   const monthExpenses = transactions
     .filter((item) => item.type === 'expense' && isSameMonth(item.date, now))

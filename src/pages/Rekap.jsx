@@ -6,7 +6,8 @@ import LiquidSegmentedControl from '../components/LiquidSegmentedControl.jsx';
 import { ListSkeleton, SummarySkeleton } from '../components/LoadingSkeleton.jsx';
 import PageHeading from '../components/PageHeading.jsx';
 import PeriodPicker from '../components/PeriodPicker.jsx';
-import { getTransactions, resetAllTransactions, resetMonthTransactions } from '../services/api.js';
+import { resetAllTransactions, resetMonthTransactions } from '../services/api.js';
+import useTransactions from '../hooks/useTransactions.js';
 import { currency } from '../utils/format.js';
 import { formatMonthLabel, parseYMD } from '../utils/helpers.js';
 import { getErrorMessage } from '../utils/errors.js';
@@ -117,27 +118,15 @@ function ConfirmationDialog({
 }
 
 export default function Rekap() {
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { transactions, loading, error, setError, reload: reloadTransactions } = useTransactions();
   const [period, setPeriod] = useState('Bulanan');
   const [selectedMonth, setSelectedMonth] = useState(() => new Date());
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [error, setError] = useState('');
   const [dialog, setDialog] = useState(null);
   const [dialogError, setDialogError] = useState('');
   const [typedConfirmation, setTypedConfirmation] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [success, setSuccess] = useState('');
-  const reloadTransactions = useCallback(async () => {
-    setTransactions(await getTransactions());
-  }, []);
-
-  useEffect(() => {
-    reloadTransactions()
-      .catch((cause) => setError(getErrorMessage(cause, 'Data transaksi gagal dimuat.')))
-      .finally(() => setLoading(false));
-  }, [reloadTransactions]);
-
   const filtered = useMemo(() => transactions.filter((item) => {
     if (period === 'Semua') return true;
     const date = parseYMD(item.date);

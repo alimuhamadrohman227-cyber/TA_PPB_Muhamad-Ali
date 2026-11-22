@@ -4,6 +4,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { deleteTransaction, getTransactionById, updateTransaction } from '../services/api.js';
 import { currency, formatDate } from '../utils/format.js';
 import { getErrorMessage } from '../utils/errors.js';
+import useAuth from '../hooks/useAuth.js';
+import { subscribeTransactions } from '../services/transactionEvents.js';
 import EmptyState from './EmptyState.jsx';
 import PageHeading from './PageHeading.jsx';
 import TransactionForm from './TransactionForm.jsx';
@@ -11,6 +13,7 @@ import TransactionForm from './TransactionForm.jsx';
 export default function TransactionDetail({ type }) {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [transaction, setTransaction] = useState(null);
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState('');
@@ -18,12 +21,22 @@ export default function TransactionDetail({ type }) {
 
   useEffect(() => {
     let active = true;
+    let eventVersion = 0;
+    const unsubscribe = subscribeTransactions(({ userId: eventUserId, transactions }) => {
+      if (!active || String(eventUserId) !== String(user?.id)) return;
+      eventVersion += 1;
+      const current = transactions.find((item) => item.id === String(id));
+      setTransaction(current?.type === type ? current : null);
+      setLoading(false);
+    });
     getTransactionById(id)
-      .then((item) => { if (active) setTransaction(item?.type === type ? item : null); })
+      .then((item) => {
+        if (active && eventVersion === 0) setTransaction(item?.type === type ? item : null);
+      })
       .catch((cause) => { if (active) setError(getErrorMessage(cause, 'Transaksi gagal dimuat.')); })
       .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [id, type]);
+    return () => { active = false; unsubscribe(); };
+  }, [id, type, user?.id]);
 
   const save = async (changes) => {
     const updated = await updateTransaction(id, changes);

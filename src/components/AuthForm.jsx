@@ -18,6 +18,10 @@ export default function AuthForm({ mode }) {
   const submit = async (event) => {
     event.preventDefault();
     setError('');
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      setError('Butuh koneksi internet untuk masuk');
+      return;
+    }
     setProcessing(true);
     try {
       if (isRegister) {
