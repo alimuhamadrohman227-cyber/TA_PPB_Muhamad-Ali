@@ -3,9 +3,9 @@ import { Search, TrendingDown } from 'lucide-react';
 import EmptyState from '../components/EmptyState.jsx';
 import LiquidSegmentedControl from '../components/LiquidSegmentedControl.jsx';
 import PageHeading from '../components/PageHeading.jsx';
-import TransactionListItem from '../components/TransactionListItem.jsx';
+import TransactionGroupList from '../components/TransactionGroupList.jsx';
 import { getTransactions } from '../services/api.js';
-import { currency, isSameMonth, localDateString, parseLocalDate } from '../utils/format.js';
+import { currency, isSameMonth } from '../utils/format.js';
 import { getErrorMessage } from '../utils/errors.js';
 
 const periods = [
@@ -30,22 +30,11 @@ export default function Pengeluaran() {
   const monthExpenses = transactions
     .filter((item) => item.type === 'expense' && isSameMonth(item.date, now))
     .reduce((sum, item) => sum + Number(item.amount), 0);
-  const expenses = useMemo(() => {
-    let result = transactions.filter((item) => item.type === 'expense');
-    if (period === 'Bulanan') result = result.filter((item) => isSameMonth(item.date, now));
-    if (period === 'Harian') result = result.filter((item) => item.date === localDateString(now));
-    if (period === 'Mingguan') {
-      const start = new Date(now);
-      start.setDate(now.getDate() - 6);
-      result = result.filter((item) => {
-        const date = parseLocalDate(item.date);
-        return date && date >= new Date(start.getFullYear(), start.getMonth(), start.getDate()) && date <= now;
-      });
-    }
-    return result
-      .filter((item) => `${item.title} ${item.category}`.toLowerCase().includes(search.toLowerCase()))
-      .sort((a, b) => b.date.localeCompare(a.date));
-  }, [transactions, period, now, search]);
+  const expenses = useMemo(() =>
+    transactions
+      .filter((item) => item.type === 'expense')
+      .filter((item) => `${item.title} ${item.category}`.toLowerCase().includes(search.toLowerCase())),
+  [transactions, search]);
 
   return (
     <main className="page-pad">
@@ -83,18 +72,18 @@ export default function Pengeluaran() {
             className="w-full bg-transparent py-3 text-xs outline-none placeholder:text-[#A5AAA5]"
           />
         </label>
-        <div className="card px-4">
-          {expenses.length ? expenses.map((item) => (
-            <TransactionListItem key={item.id} transaction={item} />
-          )) : (
-            <div className="py-3">
-              <EmptyState
-                title={search ? 'Tidak ditemukan' : 'Belum ada catatan pengeluaran'}
-                description={search ? 'Coba kata kunci lain.' : 'Tekan tombol + di bawah untuk mulai mencatat.'}
-              />
-            </div>
-          )}
-        </div>
+        {search && !expenses.length ? (
+          <div className="pb-32"><EmptyState title="Tidak ditemukan" description="Coba kata kunci lain." actionLabel="Catat Pengeluaran" actionType="expense" /></div>
+        ) : (
+          <TransactionGroupList
+            period={period}
+            transactions={expenses}
+            type="expense"
+            title="Daftar Pengeluaran"
+            emptyDescription="Tekan tombol + di bawah untuk mulai mencatat."
+            actionLabel="Catat Pengeluaran"
+          />
+        )}
       </section>
     </main>
   );

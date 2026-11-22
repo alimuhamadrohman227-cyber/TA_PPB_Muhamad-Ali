@@ -99,7 +99,7 @@ export default function LiquidSegmentedControl({
   return (
     <div
       role="tablist"
-      className={`relative flex touch-none select-none items-stretch rounded-full ${style.track} ${className}`}
+      className={`relative flex touch-none select-none items-stretch rounded-full ${style.track} ${className} ${isDragging && variant === 'dark' ? 'is-dragging' : ''}`}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={finishDrag}
@@ -108,7 +108,7 @@ export default function LiquidSegmentedControl({
       <div ref={trackRef} className="relative flex w-full">
         <span
           aria-hidden="true"
-          className={`pointer-events-none absolute inset-y-0 left-0 z-0 ${style.pill} ${activeIndex < 0 ? 'opacity-0' : ''} ${isDragging ? '' : 'transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]'}`}
+          className={`pointer-events-none absolute inset-y-0 left-0 z-0 ${style.pill} ${variant === 'dark' ? 'nav-glass-indicator' : ''} ${activeIndex < 0 ? 'opacity-0' : ''} ${isDragging ? '' : 'transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]'}`}
           style={{
             width: `${100 / options.length}%`,
             transform: `translateX(${position * 100}%) scale(${isDragging ? (variant === 'dark' ? '1.05' : '1.04') : '1'})`,
@@ -126,7 +126,7 @@ export default function LiquidSegmentedControl({
               data-segment-index={index}
               onClick={() => selectIndex(index)}
               onKeyDown={(event) => handleKeyDown(event, index)}
-              className={`relative z-10 flex min-w-0 flex-1 items-center justify-center rounded-full ${variant === 'dark' ? 'px-0 text-[9px]' : 'px-1 text-[11px]'} py-2 leading-none transition-colors duration-200 ${Icon ? 'flex-col gap-1' : 'flex-row gap-1.5'} ${active ? style.active : style.inactive}`}
+              className={`relative z-10 flex min-w-0 flex-1 items-center justify-center rounded-full ${variant === 'dark' ? 'px-0 text-[9px] active:scale-[0.97] active:transition-transform active:duration-150' : 'px-1 text-[11px]'} py-2 leading-none transition-colors duration-200 ${Icon ? 'flex-col gap-1' : 'flex-row gap-1.5'} ${active ? style.active : style.inactive}`}
             >
               {Icon && <Icon aria-hidden="true" size={15} strokeWidth={2} className="shrink-0" />}
               <span className="whitespace-nowrap">{option.label}</span>

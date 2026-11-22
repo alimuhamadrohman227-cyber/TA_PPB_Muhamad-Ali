@@ -61,7 +61,7 @@ export default function Home() {
         <div className="absolute -right-10 -top-14 h-40 w-40 rounded-full border-[28px] border-white/[0.04]" />
         <div className="relative">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-white/70">Sisa Saldo</p>
+            <p className="text-xs font-medium text-white/70">Sisa Saldo Bulan Ini</p>
             <span className={`rounded-full px-3 py-1 text-[10px] font-semibold ${balance > 0 ? 'bg-[#DCFCE7] text-[#16A34A]' : balance < 0 ? 'bg-[#FEE2E2] text-[#DC2626]' : 'bg-white/15 text-white'}`}>
               {status}
             </span>

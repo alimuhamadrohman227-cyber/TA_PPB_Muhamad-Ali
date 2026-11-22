@@ -267,10 +267,20 @@ function createExpressApp({ sql, env } = {}) {
     try {
       const now = new Date();
       const year = Number(req.query?.year ?? req.body?.year ?? now.getFullYear());
-      const monthNum = Number(req.query?.month ?? req.body?.month ?? (now.getMonth() + 1));
+      const requestedMonth = req.query?.month ?? req.body?.month;
       if (!Number.isInteger(year) || year < 1 || year > 9999) {
         return res.status(400).json({ message: 'Tahun transaksi tidak valid.' });
       }
+      if (requestedMonth === undefined) {
+        const startOfYear = `${String(year).padStart(4, '0')}-01-01`;
+        const startOfNextYear = `${String(year + 1).padStart(4, '0')}-01-01`;
+        await runQuery(
+          'DELETE FROM transactions WHERE user_id = $1 AND date >= $2::date AND date < $3::date',
+          [req.user.id, startOfYear, startOfNextYear]
+        );
+        return res.json({ message: `Semua transaksi tahun ${year} berhasil direset.` });
+      }
+      const monthNum = Number(requestedMonth);
       if (!Number.isInteger(monthNum) || monthNum < 1 || monthNum > 12) {
         return res.status(400).json({ message: 'Bulan harus berupa angka antara 1 dan 12.' });
       }

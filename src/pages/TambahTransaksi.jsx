@@ -11,7 +11,7 @@ export default function TambahTransaksi() {
   const initialType = requestedType === 'income' ? 'income' : 'expense';
   const save = async (data) => {
     await createTransaction(data);
-    navigate(data.type === 'income' ? '/pemasukan' : '/', { replace: true });
+    navigate(data.type === 'income' ? '/pemasukan' : '/pengeluaran', { replace: true });
   };
   return (
     <main className="page-pad">

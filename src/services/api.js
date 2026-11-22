@@ -12,7 +12,9 @@ export const apiClient = axios.create({
 });
 
 export function getApiErrorMessage(error, fallback = 'Terjadi kesalahan. Silakan coba lagi.') {
-  const message = error?.response?.data?.message ?? error?.message;
+  const responseMessage = error?.response?.data?.message;
+  if (typeof responseMessage === 'string' && responseMessage.trim()) return responseMessage;
+  const message = error?.message;
   return typeof message === 'string' && message.trim() ? message : fallback;
 }
 
@@ -114,6 +116,11 @@ export async function updateCurrentUserProfile(profile) {
   return normalizeUser(data?.user);
 }
 
+export async function changePassword({ oldPassword, newPassword }) {
+  const { data } = await apiClient.put('/auth/change-password', { oldPassword, newPassword });
+  return data;
+}
+
 export const normalizeTransaction = (transaction) => {
   if (!transaction || typeof transaction !== 'object') {
     throw new Error('Data transaksi dari server tidak valid.');
@@ -179,9 +186,16 @@ export async function deleteTransaction(id) {
   return data;
 }
 
-export async function resetMonthTransactions(year = new Date().getFullYear(), month = new Date().getMonth()) {
+export async function resetMonthTransactions(year, month) {
+  let params;
+  if (year === undefined) {
+    const now = new Date();
+    params = { year: now.getFullYear(), month: now.getMonth() + 1 };
+  } else {
+    params = { year, ...(month !== undefined ? { month } : {}) };
+  }
   const { data } = await apiClient.delete('/transactions/reset/monthly', {
-    params: { year, month: month + 1 },
+    params,
   });
   return data;
 }

@@ -1,6 +1,6 @@
 import { ArrowDownLeft, ArrowUpRight, Home, PieChart, UserRound } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import LiquidSegmentedControl from './LiquidSegmentedControl.jsx';
+import LiquidNavControl from './LiquidNavControl.jsx';
 
 const links = [
   { value: '/', label: 'Beranda', icon: Home },
@@ -16,13 +16,11 @@ export default function BottomNav() {
   const value = links.some((link) => link.value === pathname) ? pathname : undefined;
 
   return (
-    <nav aria-label="Navigasi utama" className="fixed bottom-5 left-1/2 z-50 w-[92%] max-w-md -translate-x-1/2">
-      <LiquidSegmentedControl
+    <nav aria-label="Navigasi utama" className="nav-position fixed left-1/2 z-50 w-[92%] max-w-md -translate-x-1/2">
+      <LiquidNavControl
         options={links}
         value={value}
         onChange={navigate}
-        variant="dark"
-        className="w-full"
       />
     </nav>
   );
