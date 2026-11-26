@@ -152,6 +152,29 @@ export async function changePassword({ oldPassword, newPassword }) {
   return data;
 }
 
+function normalizeExpenseLimits(limits) {
+  if (!limits || typeof limits !== 'object' || Array.isArray(limits)) {
+    throw new Error('Respons server tidak berisi limit pengeluaran yang valid.');
+  }
+  return Object.fromEntries(Object.entries(limits).map(([category, amount]) => {
+    const value = Number(amount);
+    if (!category || !Number.isInteger(value) || value <= 0) {
+      throw new Error('Data limit pengeluaran dari server tidak valid.');
+    }
+    return [category, value];
+  }));
+}
+
+export async function getExpenseLimits() {
+  const { data } = await apiClient.get('/expense-limits');
+  return normalizeExpenseLimits(data?.limits);
+}
+
+export async function updateExpenseLimits(limits) {
+  const { data } = await apiClient.put('/expense-limits', { limits });
+  return normalizeExpenseLimits(data?.limits);
+}
+
 export const normalizeTransaction = (transaction) => {
   if (!transaction || typeof transaction !== 'object') {
     throw new Error('Data transaksi dari server tidak valid.');

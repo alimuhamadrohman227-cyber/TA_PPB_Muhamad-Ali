@@ -42,6 +42,22 @@ function createExpressApp({ sql, env } = {}) {
     return getPool().query(text, params);
   };
 
+  let expenseLimitsSchemaPromise;
+  const ensureExpenseLimitsSchema = () => {
+    if (!expenseLimitsSchemaPromise) {
+      expenseLimitsSchemaPromise = runQuery(`
+        CREATE TABLE IF NOT EXISTS expense_category_limits (
+          user_id TEXT PRIMARY KEY,
+          limits JSONB NOT NULL DEFAULT '{}'::jsonb
+        )
+      `).catch((error) => {
+        expenseLimitsSchemaPromise = null;
+        throw error;
+      });
+    }
+    return expenseLimitsSchemaPromise;
+  };
+
   const getJwtSecret = () => {
     const secret = process.env.JWT_SECRET || (env && env.JWT_SECRET);
     if (!secret) throw new Error('JWT_SECRET is not configured');
@@ -194,6 +210,49 @@ function createExpressApp({ sql, env } = {}) {
   // ══════════════════════════════════════════════════════════════════
   //  TRANSACTION ROUTES
   // ══════════════════════════════════════════════════════════════════
+
+  const expenseCategories = ['Makan', 'Belanja', 'Tagihan', 'Transportasi', 'Lainnya'];
+
+  app.get('/api/expense-limits', authenticateToken, async (req, res) => {
+    try {
+      await ensureExpenseLimitsSchema();
+      const result = await runQuery(
+        'SELECT limits FROM expense_category_limits WHERE user_id = $1',
+        [String(req.user.id)]
+      );
+      res.json({ limits: result.rows[0]?.limits ?? {} });
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.put('/api/expense-limits', authenticateToken, async (req, res) => {
+    const input = req.body?.limits;
+    if (!input || typeof input !== 'object' || Array.isArray(input)) {
+      return res.status(400).json({ message: 'Data limit per kategori tidak valid.' });
+    }
+    const limits = {};
+    for (const [category, rawAmount] of Object.entries(input)) {
+      const amount = Number(rawAmount);
+      if (!expenseCategories.includes(category) || !Number.isInteger(amount) || amount <= 0) {
+        return res.status(400).json({ message: 'Kategori atau nominal limit tidak valid.' });
+      }
+      limits[category] = amount;
+    }
+    try {
+      await ensureExpenseLimitsSchema();
+      const result = await runQuery(
+        `INSERT INTO expense_category_limits (user_id, limits)
+         VALUES ($1, $2::jsonb)
+         ON CONFLICT (user_id) DO UPDATE SET limits = EXCLUDED.limits
+         RETURNING limits`,
+        [String(req.user.id), JSON.stringify(limits)]
+      );
+      res.json({ limits: result.rows[0].limits, message: 'Limit kategori berhasil disimpan.' });
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
 
   app.get('/api/transactions', authenticateToken, async (req, res) => {
     try {
