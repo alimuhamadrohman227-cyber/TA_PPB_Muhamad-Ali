@@ -4,11 +4,17 @@ import {
   discardFailedOutboxAndMergeServer,
   discardLocalPeriodChanges,
   deleteUserDatabase,
+  getLocalExpenseLimits,
   getLocalTransaction,
   getLocalTransactions,
+  hasPendingExpenseLimits,
+  markExpenseLimitsSynced,
+  mergeServerExpenseLimits,
   mergeServerTransactions,
   queueLocalChange,
+  saveLocalExpenseLimits,
 } from './offlineStore.js';
+import { publishExpenseLimitsUpdate } from './expenseLimitEvents.js';
 import { publishTransactionsUpdate } from './transactionEvents.js';
 import {
   configureSync,
@@ -166,13 +172,20 @@ function normalizeExpenseLimits(limits) {
 }
 
 export async function getExpenseLimits() {
-  const { data } = await apiClient.get('/expense-limits');
-  return normalizeExpenseLimits(data?.limits);
+  const userId = getUserIdOrThrow();
+  const localRecord = await getLocalExpenseLimits(userId);
+  if (typeof navigator === 'undefined' || navigator.onLine !== false) {
+    void refreshExpenseLimitsForUser(userId).catch((cause) => reportSyncError(userId, cause));
+  }
+  return localRecord;
 }
 
 export async function updateExpenseLimits(limits) {
-  const { data } = await apiClient.put('/expense-limits', { limits });
-  return normalizeExpenseLimits(data?.limits);
+  const userId = getUserIdOrThrow();
+  const record = await saveLocalExpenseLimits(userId, normalizeExpenseLimits(limits));
+  publishExpenseLimitsUpdate(userId, record);
+  await queueChanged(userId);
+  return record;
 }
 
 export const normalizeTransaction = (transaction) => {
@@ -241,6 +254,36 @@ function getUserIdOrThrow() {
   const userId = getStoredUser()?.id;
   if (!userId) throw new Error('Sesi pengguna tidak tersedia untuk data offline.');
   return userId;
+}
+
+async function getExpenseLimitsFromServer() {
+  const { data } = await apiClient.get('/expense-limits');
+  return normalizeExpenseLimits(data?.limits);
+}
+
+async function refreshExpenseLimitsForUser(userId) {
+  const localRecord = await getLocalExpenseLimits(userId);
+  const serverLimits = await getExpenseLimitsFromServer();
+  const merged = await mergeServerExpenseLimits(
+    userId,
+    serverLimits,
+    localRecord.revision,
+  );
+  publishExpenseLimitsUpdate(userId, merged);
+  if (merged.syncPending) await queueChanged(userId);
+  return merged;
+}
+
+async function syncExpenseLimitsForUser(userId) {
+  let record = await getLocalExpenseLimits(userId);
+  while (record.syncPending && (typeof navigator === 'undefined' || navigator.onLine !== false)) {
+    if (getStoredUser()?.id !== userId) return record;
+    const { data } = await apiClient.put('/expense-limits', { limits: record.limits });
+    normalizeExpenseLimits(data?.limits);
+    record = await markExpenseLimitsSynced(userId, record.revision);
+    publishExpenseLimitsUpdate(userId, record);
+  }
+  return record;
 }
 
 export async function getTransactions() {
@@ -417,6 +460,8 @@ configureSync({
       throw error;
     }
   },
+  hasPendingExpenseLimits,
+  syncExpenseLimits: syncExpenseLimitsForUser,
   refreshTransactions: refreshTransactionsForUser,
   publishTransactions: async (userId, transactions) => {
     const current = transactions ?? await getLocalTransactions(userId);

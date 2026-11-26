@@ -20,24 +20,25 @@ const periods = [
 
 export default function Pengeluaran() {
   const { transactions, loading, error } = useTransactions();
-  const { limits, loading: limitsLoading, error: limitsError, saveLimits } = useExpenseLimits();
+  const { limits, syncPending, loading: limitsLoading, error: limitsError, saveLimits } = useExpenseLimits();
   const [period, setPeriod] = useState('Bulanan');
   const [search, setSearch] = useState('');
   const [now] = useState(() => new Date());
   const [limitsOpen, setLimitsOpen] = useState(false);
   const [limitDraft, setLimitDraft] = useState({});
+  const [limitDraftDirty, setLimitDraftDirty] = useState(false);
   const [limitsSaving, setLimitsSaving] = useState(false);
   const [limitsSaved, setLimitsSaved] = useState(false);
   const [limitsFormError, setLimitsFormError] = useState('');
 
   useEffect(() => {
-    if (!limitsLoading) {
+    if (!limitsLoading && !limitDraftDirty) {
       setLimitDraft(Object.fromEntries(expenseCategories.map((category) => [
         category,
         limits[category] ? String(limits[category]) : '',
       ])));
     }
-  }, [limits, limitsLoading]);
+  }, [limits, limitsLoading, limitDraftDirty]);
 
   const monthExpenses = transactions
     .filter((item) => item.type === 'expense' && isSameMonth(item.date, now))
@@ -100,6 +101,7 @@ export default function Pengeluaran() {
                       step="1"
                       value={limitDraft[category] ?? ''}
                       onChange={(event) => {
+                        setLimitDraftDirty(true);
                         setLimitsSaved(false);
                         setLimitsFormError('');
                         setLimitDraft((draft) => ({ ...draft, [category]: event.target.value }));
@@ -114,7 +116,9 @@ export default function Pengeluaran() {
             </div>
           )}
           <div className="mt-4 flex items-center justify-between gap-3">
-            {limitsSaved ? <p role="status" className="text-xs font-medium text-[#52745A]">Limit berhasil disimpan.</p> : <span />}
+            {limitsSaved || syncPending
+              ? <p role="status" className="text-xs font-medium text-[#52745A]">{syncPending ? 'Limit tersimpan di perangkat, menunggu sinkronisasi.' : 'Limit berhasil disimpan.'}</p>
+              : <span />}
             <button
               type="button"
               disabled={limitsLoading || limitsSaving || Boolean(limitsError)}
@@ -137,8 +141,9 @@ export default function Pengeluaran() {
                   const saved = await saveLimits(nextLimits);
                   setLimitDraft(Object.fromEntries(expenseCategories.map((category) => [
                     category,
-                    saved[category] ? String(saved[category]) : '',
+                    saved.limits[category] ? String(saved.limits[category]) : '',
                   ])));
+                  setLimitDraftDirty(false);
                   setLimitsSaved(true);
                 } catch {
                   // Error is displayed from the limits hook.

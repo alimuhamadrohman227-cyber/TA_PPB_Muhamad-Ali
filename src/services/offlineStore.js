@@ -1,7 +1,9 @@
 const DATABASE_PREFIX = 'catatan-keuangan:offline:';
-const DATABASE_VERSION = 2;
+const DATABASE_VERSION = 3;
 const TRANSACTIONS_STORE = 'transactions';
 const OUTBOX_STORE = 'outbox';
+const EXPENSE_LIMITS_STORE = 'expenseLimits';
+const EXPENSE_LIMITS_KEY = 'current';
 const databasePromises = new Map();
 
 function assertUserId(userId) {
@@ -47,6 +49,9 @@ function openDatabase(userId) {
         if (!outbox.indexNames.contains('createdAt')) {
           outbox.createIndex('createdAt', 'createdAt', { unique: false });
         }
+      }
+      if (!database.objectStoreNames.contains(EXPENSE_LIMITS_STORE)) {
+        database.createObjectStore(EXPENSE_LIMITS_STORE, { keyPath: 'key' });
       }
     };
     request.onsuccess = () => {
@@ -121,6 +126,94 @@ export async function getLocalTransactions(userId) {
     const request = transaction.objectStore(TRANSACTIONS_STORE).getAll();
     request.onsuccess = () => setResult(request.result);
   });
+}
+
+export async function getLocalExpenseLimits(userId) {
+  const database = await openDatabase(userId);
+  return transactionResult(database, EXPENSE_LIMITS_STORE, 'readonly', (transaction, setResult) => {
+    const request = transaction.objectStore(EXPENSE_LIMITS_STORE).get(EXPENSE_LIMITS_KEY);
+    request.onsuccess = () => setResult(request.result ?? {
+      key: EXPENSE_LIMITS_KEY,
+      limits: {},
+      revision: 0,
+      syncPending: false,
+    });
+  });
+}
+
+export async function saveLocalExpenseLimits(userId, limits) {
+  const database = await openDatabase(userId);
+  return transactionResult(database, EXPENSE_LIMITS_STORE, 'readwrite', (transaction, setResult) => {
+    const store = transaction.objectStore(EXPENSE_LIMITS_STORE);
+    const request = store.get(EXPENSE_LIMITS_KEY);
+    request.onsuccess = () => {
+      const current = request.result;
+      const next = {
+        key: EXPENSE_LIMITS_KEY,
+        limits,
+        revision: (current?.revision ?? 0) + 1,
+        syncPending: true,
+      };
+      store.put(next);
+      setResult(next);
+    };
+  });
+}
+
+export async function mergeServerExpenseLimits(userId, limits, expectedRevision, shouldApply = () => true) {
+  const database = await openDatabase(userId);
+  return transactionResult(database, EXPENSE_LIMITS_STORE, 'readwrite', (transaction, setResult) => {
+    const store = transaction.objectStore(EXPENSE_LIMITS_STORE);
+    const request = store.get(EXPENSE_LIMITS_KEY);
+    request.onsuccess = () => {
+      const current = request.result;
+      if (!shouldApply() || current?.syncPending || (current?.revision ?? 0) !== expectedRevision) {
+        setResult(current ?? {
+          key: EXPENSE_LIMITS_KEY,
+          limits: {},
+          revision: 0,
+          syncPending: false,
+        });
+        return;
+      }
+      const next = {
+        key: EXPENSE_LIMITS_KEY,
+        limits,
+        revision: (current?.revision ?? 0) + 1,
+        syncPending: false,
+      };
+      store.put(next);
+      setResult(next);
+    };
+  });
+}
+
+export async function markExpenseLimitsSynced(userId, revision) {
+  const database = await openDatabase(userId);
+  return transactionResult(database, EXPENSE_LIMITS_STORE, 'readwrite', (transaction, setResult) => {
+    const store = transaction.objectStore(EXPENSE_LIMITS_STORE);
+    const request = store.get(EXPENSE_LIMITS_KEY);
+    request.onsuccess = () => {
+      const current = request.result;
+      if (!current || current.revision !== revision) {
+        setResult(current ?? {
+          key: EXPENSE_LIMITS_KEY,
+          limits: {},
+          revision: 0,
+          syncPending: false,
+        });
+        return;
+      }
+      const next = { ...current, revision: current.revision + 1, syncPending: false };
+      store.put(next);
+      setResult(next);
+    };
+  });
+}
+
+export async function hasPendingExpenseLimits(userId) {
+  const record = await getLocalExpenseLimits(userId);
+  return record.syncPending;
 }
 
 export async function getLocalTransaction(userId, transactionId) {

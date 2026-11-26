@@ -2,6 +2,7 @@ import {
   completeOutboxItem,
   failOutboxItem,
   getOutbox,
+  hasPendingExpenseLimits,
   markOutboxProcessing,
   recoverMissingUpdateItems,
   recoverOutboxProcessing,
@@ -39,14 +40,17 @@ function notifyStatus(status) {
 }
 
 async function updateQueueStatus(userId, phase) {
-  const queue = await getOutbox(userId);
+  const [queue, pendingExpenseLimits] = await Promise.all([
+    getOutbox(userId),
+    hasPendingExpenseLimits(userId),
+  ]);
   const previous = createStatus(userId);
   const online = isOnline();
   const status = {
     ...previous,
     online,
-    phase: !online ? 'offline' : phase ?? (queue.length ? 'pending' : 'idle'),
-    pendingCount: queue.length,
+    phase: !online ? 'offline' : phase ?? (queue.length || pendingExpenseLimits ? 'pending' : 'idle'),
+    pendingCount: queue.length + Number(pendingExpenseLimits),
     failedCount: queue.filter((item) => item.status === 'failed').length,
     failureMessage: queue.find((item) => item.status === 'failed' && item.errorMessage)?.errorMessage ?? '',
     unsyncedTransactionIds: [...new Set(queue.map((item) => item.transactionId))],
@@ -89,7 +93,8 @@ async function runSync(userId, { retryFailed = false, force = false } = {}) {
   await recoverMissingUpdateItems(userId);
   if (retryFailed) await retryFailedOutbox(userId);
   let queue = await getOutbox(userId);
-  if (queue.length) await updateQueueStatus(userId, 'syncing');
+  let pendingExpenseLimits = await hasPendingExpenseLimits(userId);
+  if (queue.length || pendingExpenseLimits) await updateQueueStatus(userId, 'syncing');
 
   let encounteredNetworkFailure = false;
   while (isOnline()) {
@@ -156,9 +161,25 @@ async function runSync(userId, { retryFailed = false, force = false } = {}) {
     }
   }
 
+  if (isOnline() && adapters.syncExpenseLimits && adapters.getActiveUserId() === userId) {
+    try {
+      await adapters.syncExpenseLimits(userId);
+    } catch (error) {
+      const status = await updateQueueStatus(userId);
+      notifyStatus({
+        ...status,
+        phase: isOnline() ? 'error' : 'offline',
+        errorMessage: isOnline() ? adapters.getErrorMessage(error) : '',
+      });
+      if (!isAuthorizationError(error)) scheduleRetry(userId, RETRY_DELAYS_MS.length);
+      return;
+    }
+  }
+
   await updateQueueStatus(userId);
   queue = await getOutbox(userId);
-  const pending = queue.some((item) => item.status !== 'failed');
+  pendingExpenseLimits = await hasPendingExpenseLimits(userId);
+  const pending = queue.some((item) => item.status !== 'failed') || pendingExpenseLimits;
   if (pending || encounteredNetworkFailure || !isOnline()) return;
 
   try {
@@ -177,7 +198,8 @@ async function runSync(userId, { retryFailed = false, force = false } = {}) {
 
   await updateQueueStatus(userId);
   queue = await getOutbox(userId);
-  if (queue.length === 0 && isOnline()) {
+  pendingExpenseLimits = await hasPendingExpenseLimits(userId);
+  if (queue.length === 0 && !pendingExpenseLimits && isOnline()) {
     await updateQueueStatus(userId, 'synced');
     if (statusTimers.has(userId)) clearTimeout(statusTimers.get(userId));
     const timer = setTimeout(() => {
@@ -265,7 +287,9 @@ export async function queueChanged(userId) {
   const ongoing = activeSync;
   void ongoing.then(async () => {
     const queue = await getOutbox(normalizedUserId);
-    if (queue.some((item) => item.status === 'pending' && item.nextRetryAt <= Date.now())) {
+    const pendingExpenseLimits = await hasPendingExpenseLimits(normalizedUserId);
+    if (pendingExpenseLimits
+      || queue.some((item) => item.status === 'pending' && item.nextRetryAt <= Date.now())) {
       await syncPendingTransactions(normalizedUserId);
     }
   }).catch((error) => {
